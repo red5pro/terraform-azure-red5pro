@@ -91,6 +91,29 @@ variable "vpc_create" {
   default         = true
 }
 
+# Autoscaling Configuration
+variable "ssl_certificate_pfx_path" {
+  description = "Path to the SSL certificate PFX file."
+  type        = string
+  default     = ""
+}
+variable "ssl_certificate_pfx_password" {
+  description = "Password for the SSL certificate PFX file."
+  type        = string
+  default     = "abc123"
+}
+# Application Gateway variables
+variable "application_gateway_sku_name" {
+  description = "The Name of the SKU to use for this Application Gateway. Possible values are Standard_Small, Standard_Medium, Standard_Large, Standard_v2, WAF_Medium, WAF_Large, and WAF_v2."
+  type        = string
+  default     = "Standard_v2"
+}
+variable "application_gateway_sku_tier" {
+  description = "The Tier of the SKU to use for this Application Gateway. Possible values are Standard, Standard_v2, WAF and WAF_v2."
+  type        = string
+  default     = "Standard_v2"
+}
+
 # Database Configuration
 variable "mysql_database_create" {
   description     = "Create a new MySQL Database"

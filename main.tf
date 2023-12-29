@@ -437,7 +437,28 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
     }
   }
 
+  lifecycle {
+    ignore_changes = all
+  }
+
 }
+
+resource "null_resource" "dealocate_stream_manager_vm" {
+  count      = local.autoscaling ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm deallocate -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_stream_manager[0].name}"
+  }
+  depends_on = [azurerm_linux_virtual_machine.red5_stream_manager]
+}
+
+resource "null_resource" "generalize_stream_manager_vm" {
+  count      = local.autoscaling ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm generalize -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_stream_manager[0].name}"
+  }
+    depends_on = [null_resource.dealocate_stream_manager_vm]
+}
+
 
 ################################################################################
 # Red5 Pro MySQL Database
@@ -479,6 +500,133 @@ resource "azurerm_mysql_virtual_network_rule" "mysql_network_rule" {
   resource_group_name = local.az_resource_group
   server_name         = azurerm_mysql_server.red5_database[0].name
   subnet_id           = azurerm_subnet.vpc_subnet[0].id
+}
+################################################################################
+# Red5 Pro Load Balancer  (Azure Autoscale)
+################################################################################
+resource "azurerm_public_ip" "lb_ip" {
+  count               = local.autoscaling ? 1 : 0
+  name                = "${var.name}-lb-public-ip"
+  resource_group_name = local.az_resource_group
+  location            = var.azure_region
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+resource "azurerm_application_gateway" "red5_gateway" {
+  count               = local.autoscaling ? 1 : 0
+  name                = "${var.name}-aplication-gateway-lb"
+  resource_group_name = local.az_resource_group
+  location            = var.azure_region
+
+  sku {
+    name     = var.application_gateway_sku_name
+    tier     = var.application_gateway_sku_tier
+    capacity = 2
+  }
+
+  gateway_ip_configuration {
+    name      = "${var.name}-lb-gateway-ip-config"
+    subnet_id = azurerm_subnet.vpc_subnet[0].id
+  }
+
+  frontend_port {
+    name = "${var.name}-lb-http-frontend-port"
+    port = 5080
+  }
+  
+  frontend_port {
+    name = "${var.name}-lb-https-frontend-port"
+    port = 443
+  }
+
+  ssl_certificate {
+    name     = "${var.name}-lb-ssl-certificcate"
+    data     = filebase64(var.ssl_certificate_pfx_path)
+    password = var.ssl_certificate_pfx_password
+  }
+
+  frontend_ip_configuration {
+    name                 = "${var.name}-lb-frontend-ip-config"
+    public_ip_address_id = azurerm_public_ip.lb_ip[0].id
+  }
+
+  backend_address_pool {
+    name = "${var.name}-lb-backend-pool"
+  }
+
+  backend_http_settings {
+    name                  = "${var.name}-lb-http-settings"
+    cookie_based_affinity = "Disabled"
+    port                  = 5080
+    protocol              = "Http"
+    request_timeout       = 60
+  }
+
+  http_listener {
+    name                           = "${var.name}-lb-http-listener"
+    frontend_ip_configuration_name = "${var.name}-lb-frontend-ip-config"
+    frontend_port_name             = "${var.name}-lb-http-frontend-port"
+    protocol                       = "Http"
+  }
+    http_listener {
+    name                           = "${var.name}-lb-https-listener"
+    frontend_ip_configuration_name = "${var.name}-lb-frontend-ip-config"
+    frontend_port_name             = "${var.name}-lb-https-frontend-port"
+    protocol                       = "Https"
+    ssl_certificate_name           = "${var.name}-lb-ssl-certificcate"
+  }
+
+  request_routing_rule {
+    name                       = "${var.name}-lb-http-routing-rule"
+    rule_type                  = "Basic"
+    http_listener_name         = "${var.name}-lb-http-listener"
+    backend_address_pool_name  = "${var.name}-lb-backend-pool"
+    backend_http_settings_name = "${var.name}-lb-http-settings"
+    priority                   = 2
+  }
+  request_routing_rule {
+    name                       = "${var.name}-lb-https-routing-rule"
+    rule_type                  = "Basic"
+    http_listener_name         = "${var.name}-lb-https-listener"
+    backend_address_pool_name  = "${var.name}-lb-backend-pool"
+    backend_http_settings_name = "${var.name}-lb-http-settings"
+    priority                   = 1
+  }
+}
+# Autoscaling Stream Manager
+resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
+  count               = local.autoscaling ? 1 : 0
+  name                = "${var.name}-vm-scale-set"
+  resource_group_name = local.az_resource_group
+  location            = var.azure_region
+  sku                 = var.stream_manager_machine_size
+  instances           = 1
+  admin_username      = "ubuntu"
+  source_image_id     = azurerm_image.stream_manager_image[0].id
+
+  admin_ssh_key {
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
+  }
+
+  os_disk {
+    storage_account_type = "Standard_LRS"
+    caching              = "ReadWrite"
+  }
+
+  network_interface {
+    name    = "${var.name}-vm-scale-set-nic"
+    primary = true
+
+    ip_configuration {
+      name      = "${var.name}-vm-scale-set-nic-ipconfig"
+      primary   = true
+      subnet_id = azurerm_subnet.vpc_subnet[0].id
+      application_gateway_backend_address_pool_ids = azurerm_application_gateway.red5_gateway[0].backend_address_pool[*].id
+
+    }
+  }
 }
 
 ################################################################################
@@ -573,6 +721,24 @@ resource "azurerm_linux_virtual_machine" "red5_origin" {
     }
   }
 
+}
+
+# Dealocating Origin Image
+resource "null_resource" "dealocate_origin_vm" {
+  count      = var.origin_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm deallocate -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_origin[0].name}"
+  }
+  depends_on = [azurerm_linux_virtual_machine.red5_origin]
+}
+
+# Dealocating Origin Image
+resource "null_resource" "generalize_origin_vm" {
+  count      = var.origin_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm generalize -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_origin[0].name}"
+  }
+    depends_on = [null_resource.dealocate_origin_vm]
 }
 
 # Red5 Pro edge node 
@@ -851,25 +1017,40 @@ resource "azurerm_linux_virtual_machine" "red5_relay" {
 ####################################################################################################
 # Red5 Pro Autoscaling Nodes create images - Origin/Edge/Transcoders/Relay
 ####################################################################################################
-# Origin Node - Origin Image
-resource "azurerm_image" "origin_image" {
-  count               = var.origin_image_create ? 1 : 0
-  name                = "${var.name}-origin-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+# Stream Manager Image
+resource "azurerm_image" "stream_manager_image" {
+  count               = local.autoscaling ? 1 : 0
+  name                = "${var.name}-stream-manager-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
-  source_virtual_machine_id = azurerm_linux_virtual_machine.red5_origin[0].id
-  os_disk {
-    os_type = "Linux"
-    os_state = "Generalized"
-  }
+  source_virtual_machine_id = azurerm_linux_virtual_machine.red5_stream_manager[0].id
   lifecycle {
     ignore_changes    = [ name ]
   }
+
+  depends_on = [ null_resource.dealocate_stream_manager_vm,
+                 null_resource.generalize_stream_manager_vm
+               ]
+}
+# Origin Node - Origin Image
+resource "azurerm_image" "origin_image" {
+  count               = var.origin_image_create ? 1 : 0
+  name                = "${var.name}-origin-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group
+  source_virtual_machine_id = azurerm_linux_virtual_machine.red5_origin[0].id
+  lifecycle {
+    ignore_changes    = [ name ]
+  }
+
+  depends_on = [ null_resource.dealocate_origin_vm,
+                 null_resource.generalize_origin_vm 
+               ]
 }
 # Edge Node - Edge Image
 resource "azurerm_image" "edge_image" {
   count               = var.edge_image_create ? 1 : 0
-  name                = "${var.name}-edge-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-edge-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_edge[0].id
@@ -880,7 +1061,7 @@ resource "azurerm_image" "edge_image" {
 # Relay Node - Relay Image
 resource "azurerm_image" "relay_image" {
   count               = var.relay_image_create ? 1 : 0
-  name                = "${var.name}-relay-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-relay-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_relay[0].id
@@ -891,7 +1072,7 @@ resource "azurerm_image" "relay_image" {
 # Transcoder Node - Transcoder Image
 resource "azurerm_image" "transcoder_image" {
   count               = var.transcoder_image_create ? 1 : 0
-  name                = "${var.name}-transcoder-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-transcoder-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_transcoder[0].id
