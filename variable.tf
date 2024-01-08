@@ -17,6 +17,23 @@ variable "type" {
     error_message = "The type value must be a valid! Example: single, cluster, autoscaling"
   }
 }
+variable "ubuntu_image_offer" {
+  description = "Ubuntu version to be used for the machines."
+  type = map(string)
+  default = {
+    "20.04" = "0001-com-ubuntu-server-focal"
+    "22.04" = "0001-com-ubuntu-server-jammy"
+  }
+}
+
+variable "ubuntu_image_sku" {
+  description = "Ubuntu version to be used for the machines."
+  type = map(string)
+  default = {
+    "20.04" = "20_04-lts"
+    "22.04" = "22_04-lts"
+  }
+}
 variable "ubuntu_version" {
   description     = "Ubuntu version which is going to be used for creating droplet in Digital Ocean"
   type            = string
@@ -181,11 +198,6 @@ variable "virtual_machine_size" {
 }
 variable "ssh_key_name" {
   description     = "SSH keys name to cretae ssh-key pair"
-  type            = string
-  default         = ""
-}
-variable "existing_ssh_key_name" {
-  description     = "SSH keys name which is already uploaded in the azure cloud account"
   type            = string
   default         = ""
 }

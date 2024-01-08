@@ -56,7 +56,7 @@ module "red5pro_single" {
   red5pro_azure_storage_account_name            = ""                                         # Red5 Pro server cloud storage - Azure storage account name
   red5pro_azure_storage_account_key             = ""                                         # Red5 Pro server cloud storage - Azure storage account key
   red5pro_azure_storage_container_name          = ""                                         # Red5 Pro server cloud storage - Azure storage container name
-  red5pro_cloudstorage_postprocessor_enable     = ""                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
+  red5pro_cloudstorage_postprocessor_enable     = false                                      # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
 
 }
 

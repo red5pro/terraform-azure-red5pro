@@ -2,8 +2,6 @@ locals {
   single                           = var.type == "single" ? true : false
   cluster                          = var.type == "cluster" ? true : false
   autoscaling                      = var.type == "autoscaling" ? true : false
-  image_offer                      = var.ubuntu_version == "22.04" ? "0001-com-ubuntu-server-jammy" : "0001-com-ubuntu-server-focal"
-  image_sku                        = var.ubuntu_version == "22.04" ? "22_04-lts" : "20_04-lts"
   ssh_private_key_path             = var.create_new_ssh_keys ? local_file.red5pro_ssh_key_pem[0].filename : var.existing_private_ssh_key_path
   az_resource_group                = var.create_azure_resource_group ? azurerm_resource_group.az_resource_group[0].name : var.existing_azure_resource_group_name
   public_ssh_key                   = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].public_key_openssh : file(var.existing_public_ssh_key_path)
@@ -46,13 +44,6 @@ resource "azurerm_ssh_public_key" "red5pro_ssh" {
   public_key          = tls_private_key.red5pro_ssh_key[0].public_key_openssh
 }
 
-# Use already created ssh keys of azure account
-data "azurerm_ssh_public_key" "existing_red5pro_ssh" {
-  count               = var.create_new_ssh_keys ? 0 : 1
-  name                = var.existing_ssh_key_name
-  resource_group_name = local.az_resource_group
-}
-
 ################################################################################
 # Azure Resource Group 
 ################################################################################
@@ -85,6 +76,14 @@ resource "azurerm_subnet" "vpc_subnet" {
   resource_group_name  = local.az_resource_group
   virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
   address_prefixes     = cidrsubnets(var.vpc_cidr_block, 4)
+}
+
+resource "azurerm_subnet" "vpc_subnet_default" {
+  count                = var.vpc_create ? 1 : 0
+  name                 = "default"
+  resource_group_name  = local.az_resource_group
+  virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
+  address_prefixes     = [cidrsubnets(var.vpc_cidr_block, 4, 4)[count.index+1]]
 }
 
 ################################################################################
@@ -267,13 +266,13 @@ resource "azurerm_linux_virtual_machine" "red5_single" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
   source_image_reference {
     publisher        = "Canonical"
-    offer            = local.image_offer
-    sku              = local.image_sku
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
     version          = "latest"
   }
 
@@ -361,13 +360,13 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
   source_image_reference {
     publisher        = "Canonical"
-    offer            = local.image_offer
-    sku              = local.image_sku
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
     version          = "latest"
   }
 
@@ -611,7 +610,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
   }
 
   os_disk {
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
     caching              = "ReadWrite"
   }
 
@@ -652,13 +651,13 @@ resource "azurerm_linux_virtual_machine" "red5_origin" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
   source_image_reference {
     publisher        = "Canonical"
-    offer            = local.image_offer
-    sku              = local.image_sku
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
     version          = "latest"
   }
 
@@ -761,13 +760,13 @@ resource "azurerm_linux_virtual_machine" "red5_edge" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
   source_image_reference {
     publisher        = "Canonical"
-    offer            = local.image_offer
-    sku              = local.image_sku
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
     version          = "latest"
   }
 
@@ -852,13 +851,13 @@ resource "azurerm_linux_virtual_machine" "red5_transcoder" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
   source_image_reference {
     publisher        = "Canonical"
-    offer            = local.image_offer
-    sku              = local.image_sku
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
     version          = "latest"
   }
 
@@ -943,13 +942,13 @@ resource "azurerm_linux_virtual_machine" "red5_relay" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
   source_image_reference {
     publisher        = "Canonical"
-    offer            = local.image_offer
-    sku              = local.image_sku
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
     version          = "latest"
   }
 
@@ -1035,7 +1034,7 @@ resource "azurerm_image" "stream_manager_image" {
 # Origin Node - Origin Image
 resource "azurerm_image" "origin_image" {
   count               = var.origin_image_create ? 1 : 0
-  name                = "${var.name}-origin-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
+  name                = "${var.name}-origin-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_origin[0].id
@@ -1050,7 +1049,7 @@ resource "azurerm_image" "origin_image" {
 # Edge Node - Edge Image
 resource "azurerm_image" "edge_image" {
   count               = var.edge_image_create ? 1 : 0
-  name                = "${var.name}-edge-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
+  name                = "${var.name}-edge-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_edge[0].id
@@ -1061,7 +1060,7 @@ resource "azurerm_image" "edge_image" {
 # Relay Node - Relay Image
 resource "azurerm_image" "relay_image" {
   count               = var.relay_image_create ? 1 : 0
-  name                = "${var.name}-relay-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
+  name                = "${var.name}-relay-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_relay[0].id
@@ -1072,7 +1071,7 @@ resource "azurerm_image" "relay_image" {
 # Transcoder Node - Transcoder Image
 resource "azurerm_image" "transcoder_image" {
   count               = var.transcoder_image_create ? 1 : 0
-  name                = "${var.name}-transcoder-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
+  name                = "${var.name}-transcoder-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_transcoder[0].id
