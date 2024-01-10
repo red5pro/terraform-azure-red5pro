@@ -340,23 +340,23 @@ variable "single_red5_nsg_ports" {
   type = list(number)
   default = [22, 80, 5080, 443]
 }
-variable "stream_manager_red5_nsg_ports" {
-  description = "Red5 Pro ports enable for stream manager server deloyment"
+
+variable "stream_manager_red5_nsg_tcp_ports" {
+  description = "Red5 Pro TCP ports enable for stream manager server deloyment"
   type = list(number)
   default = [22, 80, 5080, 443]
 }
-
 
 ########################################################
 # Red5 Pro autoscaling Origin node image configuration
 ########################################################
 # Origin node configuration
-variable "origin_red5_tcp_nsg_ports" {
+variable "node_red5_tcp_nsg_ports" {
   description = "Red5 Pro ports enable for origin node"
   type = list(number)
-  default = [22, 5080, 1935, 8554]
+  default = [22, 5080, 1935, 8554, 6262, 8081]
 }
-variable "origin_red5_udp_nsg_ports" {
+variable "node_red5_udp_nsg_ports" {
   description = "Red5 Pro ports enable for origin node"
   type = string
   default = "40000-65535"

@@ -31,11 +31,11 @@ module "red5pro_cluster" {
 
   # Database Configuration
   mysql_database_create     = false                                                          # true - create a new database false- Install locally
-  mysql_database_sku        = ""                                                             # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
-  mysql_storage_mb          = ""                                                             # Specifies the maximum storage allowed for a given server. eg: 5120
-  mysql_username            = "example-user"                                                 # Username for locally install databse
-  mysql_password            = "@E1example-password"                                          # Password for locally install databse
-  mysql_port                = 3306                                                           # Port for locally install databse
+  mysql_database_sku        = "B_Gen5_2"                                                     # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
+  mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
+  mysql_username            = "example-user"                                                 # Username for locally install databse and dedicated database in azure
+  mysql_password            = "@E1example-password"                                          # Password for locally install databse and dedicated database in azure
+  mysql_port                = 3306                                                           # Port for locally install databse and dedicated database in azure
 
   # Red5 Pro general configuration
   red5pro_license_key                           = "1111-2222-3333-4444"                      # Red5 Pro license key (https://account.red5pro.com/login)
