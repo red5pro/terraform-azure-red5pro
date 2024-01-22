@@ -1,13 +1,17 @@
 #################################################
 # Example for single Red5 Pro server deployment #
 #################################################
+provider "azurerm" {
+  features {}
+  client_id           = ""                                                             # Client id of the Azue account
+  client_secret       = ""                                                             # Client Secret id of the Azue account
+  subscription_id     = ""                                                             # Subscription id of the Azue account
+  tenant_id           = ""                                                             # Tenant id of the Azue account
+  skip_provider_registration = true
+}
 
 module "red5pro_single" {
   source                    = "../../"
-  azure_client_id           = ""                                                             # Client id of the Azue account
-  azure_client_secret       = ""                                                             # Client Secret id of the Azue account
-  azure_subscription_id     = ""                                                             # Subscription id of the Azue account
-  azure_tenant_id           = ""                                                             # Tenant id of the Azue account
   azure_region              = "centralindia"                                                 # Azure region where resources will create eg: centralindia
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group

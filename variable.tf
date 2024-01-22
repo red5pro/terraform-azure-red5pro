@@ -34,6 +34,7 @@ variable "ubuntu_image_sku" {
     "22.04" = "22_04-lts"
   }
 }
+
 variable "ubuntu_version" {
   description     = "Ubuntu version which is going to be used for creating droplet in Digital Ocean"
   type            = string
@@ -145,7 +146,7 @@ variable "mysql_username" {
 variable "mysql_database_sku" {
   description     = "MySQL database size"
   type            = string
-  default         = "B_Gen5_2"
+  default         = "GP_Gen5_2"
 }
 variable "mysql_storage_mb" {
   description     = "MySQL storage"

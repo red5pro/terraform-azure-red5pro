@@ -1,6 +1,14 @@
 #################################################
 # Example for autoscale Red5 Pro server deployment
 #################################################
+provider "azurerm" {
+  features {}
+  client_id           = ""                                                             # Client id of the Azue account
+  client_secret       = ""                                                             # Client Secret id of the Azue account
+  subscription_id     = ""                                                             # Subscription id of the Azue account
+  tenant_id           = ""                                                             # Tenant id of the Azue account
+  skip_provider_registration = true
+}
 
 module "red5pro_autoscaling" {
   source                    = "../../"
@@ -15,7 +23,7 @@ module "red5pro_autoscaling" {
   new_azure_resource_group_name      = "TestGroup"                                           # If create_azure_resource_group = true, new resource group name to be used
 
   ubuntu_version            = "20.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
-  type                      = "cluster"                                                      # Deployment type: single, cluster, autoscaling
+  type                      = "autoscaling"                                                  # Deployment type: single, cluster, autoscaling
   name                      = ""                                                             # Name to be used on all the resources as identifier
   path_to_red5pro_build     = "./red5pro-server-0.0.0-release.zip"                           # Absolute path or relative path to Red5 Pro server ZIP file
   path_to_azure_cloud_controller = "./azure-cloud-controller--0.0.0.jar"                     # Absolute path or relative path to azure cloud controller jar file
@@ -30,7 +38,7 @@ module "red5pro_autoscaling" {
   vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
 
   # Database Configuration
-  mysql_database_sku        = "B_Gen5_2"                                                     # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
+  mysql_database_sku        = "GP_Gen5_2"                                                     # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
   mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
   mysql_username            = "example-user"                                                 # Username for locally install databse and dedicated database in azure
   mysql_password            = "@E1example-password"                                          # Password for locally install databse and dedicated database in azure

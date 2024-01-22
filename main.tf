@@ -6,9 +6,10 @@ locals {
   az_resource_group                = var.create_azure_resource_group ? azurerm_resource_group.az_resource_group[0].name : var.existing_azure_resource_group_name
   public_ssh_key                   = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].public_key_openssh : file(var.existing_public_ssh_key_path)
   private_ssh_key                  = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].private_key_pem : file(var.existing_private_ssh_key_path)
-  stream_manager_ip                = local.cluster_or_autoscaling ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
+  stream_manager_ip                = local.autoscaling ? azurerm_public_ip.lb_ip[0].ip_address : local.cluster ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
   mysql_local_enable               = local.autoscaling ? false : local.cluster && var.mysql_database_create ? false : true
   mysql_host                       = local.autoscaling ? azurerm_mysql_server.red5_database[0].fqdn : local.cluster && var.mysql_database_create ? azurerm_mysql_server.red5_database[0].fqdn : "localhost"
+  mysql_username                   = local.autoscaling ? "${var.mysql_username}@${azurerm_mysql_server.red5_database[0].fqdn}" : local.cluster && var.mysql_database_create ? "${var.mysql_username}@${azurerm_mysql_server.red5_database[0].fqdn}" : "${var.mysql_username}@localhost"
   mysql_db_system_create           = local.autoscaling ? true : local.cluster && var.mysql_database_create ? true : false
   single_server_ip                 = local.single ? azurerm_linux_virtual_machine.red5_single[0].public_ip_address : null
   cluster_or_autoscaling           = local.cluster || local.autoscaling ? true : false
@@ -65,7 +66,7 @@ data "azurerm_resources" "existing_az_resource" {
 ################################################################################
 resource "azurerm_virtual_network" "red5_vpc" {
   count               = var.vpc_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-red5-vnet"
+  name                = "${var.name}-${var.azure_region}-vnet"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   address_space       = [var.vpc_cidr_block]
@@ -77,6 +78,7 @@ resource "azurerm_subnet" "vpc_subnet" {
   resource_group_name  = local.az_resource_group
   virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
   address_prefixes     = cidrsubnets(var.vpc_cidr_block, 4)
+  service_endpoints    = ["Microsoft.Sql"]
 }
 
 resource "azurerm_subnet" "vpc_subnet_default" {
@@ -85,6 +87,14 @@ resource "azurerm_subnet" "vpc_subnet_default" {
   resource_group_name  = local.az_resource_group
   virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
   address_prefixes     = [cidrsubnets(var.vpc_cidr_block, 4, 4)[count.index+1]]
+}
+
+resource "azurerm_subnet" "application_gateway_subnet_default" {
+  count                = local.cluster_or_autoscaling ? 1 : 0
+  name                 = "${var.name}-${var.azure_region}-red5-application-gateway-subnet"
+  resource_group_name  = local.az_resource_group
+  virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
+  address_prefixes     = [cidrsubnets(var.vpc_cidr_block, 4, 4, 4)[count.index+2]]
 }
 
 ################################################################################
@@ -170,7 +180,7 @@ resource "azurerm_network_interface" "node_network_interface" {
 
 resource "azurerm_network_security_group" "red5_node_network_security_group" {
   count               = var.origin_image_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-red5-node-nsg"
+  name                = "${var.name}-${var.azure_region}-nsg"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   security_rule {
@@ -205,7 +215,7 @@ resource "azurerm_network_interface_security_group_association" "node_network_in
 
 resource "azurerm_subnet_network_security_group_association" "node_subnet_security_group_association" {
   count                     = var.origin_image_create ? 1 : 0
-  subnet_id                 = azurerm_subnet.vpc_subnet[0].id
+  subnet_id                 = azurerm_subnet.vpc_subnet_default[0].id
   network_security_group_id = azurerm_network_security_group.red5_node_network_security_group[0].id
 }
 
@@ -427,7 +437,7 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
       "export DB_LOCAL_ENABLE='${local.mysql_local_enable}'",
       "export DB_HOST='${local.mysql_host}'",
       "export DB_PORT='${var.mysql_port}'",
-      "export DB_USER='${var.mysql_username}'",
+      "export DB_USER='${local.mysql_username}'",
       "export DB_PASSWORD='${nonsensitive(var.mysql_password)}'",
       "export AZURE_RESOURCE_GROUP='${local.az_resource_group}'",
       "export AZURE_REGION='${var.azure_region}'",
@@ -500,16 +510,7 @@ resource "azurerm_mysql_server" "red5_database" {
   infrastructure_encryption_enabled = false
   public_network_access_enabled     = true
   ssl_enforcement_enabled           = false
-  ssl_minimal_tls_version_enforced  = "TLS1_2"
-}
-
-resource "azurerm_mysql_firewall_rule" "red5_database_firewall_rule" {
-  count               = local.mysql_db_system_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-red5-mysql-firewall"
-  resource_group_name = local.az_resource_group
-  server_name         = azurerm_mysql_server.red5_database[0].name
-  start_ip_address    = azurerm_public_ip.sm_public_ip[0].ip_address
-  end_ip_address      = azurerm_public_ip.sm_public_ip[0].ip_address
+  ssl_minimal_tls_version_enforced  = "TLSEnforcementDisabled"  
 }
 
 resource "azurerm_mysql_virtual_network_rule" "mysql_network_rule" {
@@ -545,7 +546,7 @@ resource "azurerm_application_gateway" "red5_gateway" {
 
   gateway_ip_configuration {
     name      = "${var.name}-lb-gateway-ip-config"
-    subnet_id = azurerm_subnet.vpc_subnet[0].id
+    subnet_id = azurerm_subnet.application_gateway_subnet_default[0].id
   }
 
   frontend_port {
@@ -1212,12 +1213,17 @@ resource "time_sleep" "wait_for_delete_nodegroup" {
     azurerm_network_interface_security_group_association.sm_network_interface_security_association[0],
     azurerm_network_security_group.red5_stream_manager_network_security_group[0],
     azurerm_mysql_server.red5_database[0],
-    azurerm_mysql_firewall_rule.red5_database_firewall_rule[0],
     azurerm_mysql_virtual_network_rule.mysql_network_rule[0],
     azurerm_application_gateway.red5_gateway[0],
     azurerm_linux_virtual_machine_scale_set.autoscale_sm[0],
+    azurerm_network_interface.node_network_interface[0],
+    azurerm_network_interface.sm_network_interface[0],
+    azurerm_network_security_group.red5_node_network_security_group[0],
+    azurerm_network_interface_security_group_association.node_network_interface_security_association[0],
+    azurerm_subnet_network_security_group_association.node_subnet_security_group_association[0],
+
   ]
-  destroy_duration = "90s"
+  destroy_duration = "2m"
 }
 
 resource "null_resource" "node_group" {
@@ -1254,10 +1260,10 @@ resource "null_resource" "node_group" {
       EDGE_CAPACITY              = "${var.node_group_edges_capacity}"
       TRANSCODER_CAPACITY        = "${var.node_group_transcoders_capacity}"
       RELAY_CAPACITY             = "${var.node_group_relays_capacity}"
-      ORIGIN_IMAGE_NAME          = "${split("-${var.azure_region}-img", try(azurerm_image.origin_image[0].name, null))[0]}"
-      EDGE_IMAGE_NAME            = "${split("-${var.azure_region}-img", try(azurerm_image.edge_image[0].name, null))[0]}"
-      TRANSCODER_IMAGE_NAME      = "${split("-${var.azure_region}-img", try(azurerm_image.transcoder_image[0].name, null))[0]}"
-      RELAY_IMAGE_NAME           = "${split("-${var.azure_region}-img", try(azurerm_image.relay_image[0].name, null))[0]}"
+      ORIGIN_IMAGE_NAME          = "${try(split("-${var.azure_region}-img", azurerm_image.origin_image[0].name), [null])[0]}"
+      EDGE_IMAGE_NAME            = "${try(split("-${var.azure_region}-img", azurerm_image.edge_image[0].name), [null])[0]}"
+      TRANSCODER_IMAGE_NAME      = "${try(split("-${var.azure_region}-img", azurerm_image.transcoder_image[0].name), [null])[0]}"
+      RELAY_IMAGE_NAME           = "${try(split("-${var.azure_region}-img", azurerm_image.relay_image[0].name), [null])[0]}"
     }
   }
 

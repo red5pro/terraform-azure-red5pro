@@ -109,7 +109,7 @@ module "red5pro_single" {
   red5pro_azure_storage_account_name            = ""                                         # Red5 Pro server cloud storage - Azure storage account name
   red5pro_azure_storage_account_key             = ""                                         # Red5 Pro server cloud storage - Azure storage account key
   red5pro_azure_storage_container_name          = ""                                         # Red5 Pro server cloud storage - Azure storage container name
-  red5pro_cloudstorage_postprocessor_enable     = ""                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
+  red5pro_cloudstorage_postprocessor_enable     = false                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
 
 }
 
@@ -207,7 +207,7 @@ module "red5pro_cluster" {
   origin_red5pro_azure_storage_account_name            = ""                                         # Red5 Pro server cloud storage - Azure storage account name
   origin_red5pro_azure_storage_account_key             = ""                                         # Red5 Pro server cloud storage - Azure storage account key
   origin_red5pro_azure_storage_container_name          = ""                                         # Red5 Pro server cloud storage - Azure storage container name
-  origin_red5pro_cloudstorage_postprocessor_enable     = ""                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
+  origin_red5pro_cloudstorage_postprocessor_enable     = false                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
 
   # Red5 Pro autoscaling Node group - (Optional)
   node_group_create = true                                                                 # Linux or Mac OS only. true - create new Node group, false - not create new Node group
@@ -266,7 +266,7 @@ module "red5pro_autoscaling" {
   new_azure_resource_group_name      = "TestGroup"                                           # If create_azure_resource_group = true, new resource group name to be used
 
   ubuntu_version            = "20.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
-  type                      = "cluster"                                                      # Deployment type: single, cluster, autoscaling
+  type                      = "autoscaling"                                                      # Deployment type: single, cluster, autoscaling
   name                      = ""                                                             # Name to be used on all the resources as identifier
   path_to_red5pro_build     = "./red5pro-server-0.0.0-release.zip"                           # Absolute path or relative path to Red5 Pro server ZIP file
   path_to_azure_cloud_controller = "./azure-cloud-controller--0.0.0.jar"                     # Absolute path or relative path to azure cloud controller jar file
@@ -327,7 +327,7 @@ module "red5pro_autoscaling" {
   origin_red5pro_azure_storage_account_name            = ""                                         # Red5 Pro server cloud storage - Azure storage account name
   origin_red5pro_azure_storage_account_key             = ""                                         # Red5 Pro server cloud storage - Azure storage account key
   origin_red5pro_azure_storage_container_name          = ""                                         # Red5 Pro server cloud storage - Azure storage container name
-  origin_red5pro_cloudstorage_postprocessor_enable     = ""                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
+  origin_red5pro_cloudstorage_postprocessor_enable     = false                                         # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
 
   # Red5 Pro autoscaling Node group - (Optional)
   node_group_create = true                                                                 # Linux or Mac OS only. true - create new Node group, false - not create new Node group
