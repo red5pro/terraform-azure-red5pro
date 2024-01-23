@@ -510,7 +510,7 @@ resource "azurerm_mysql_server" "red5_database" {
   infrastructure_encryption_enabled = false
   public_network_access_enabled     = true
   ssl_enforcement_enabled           = false
-  ssl_minimal_tls_version_enforced  = "TLSEnforcementDisabled"  
+  ssl_minimal_tls_version_enforced  = "TLSEnforcementDisabled"
 }
 
 resource "azurerm_mysql_virtual_network_rule" "mysql_network_rule" {

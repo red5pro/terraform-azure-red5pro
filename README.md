@@ -281,7 +281,6 @@ module "red5pro_autoscaling" {
   vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
 
   # Database Configuration
-  mysql_database_create     = false                                                          # true - create a new database false- Install locally
   mysql_database_sku        = ""                                                             # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
   mysql_storage_mb          = ""                                                             # Specifies the maximum storage allowed for a given server. eg: 5120
   mysql_username            = "example-user"                                                 # Username for locally install databse
