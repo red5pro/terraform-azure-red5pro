@@ -64,6 +64,10 @@ module "red5pro_autoscaling" {
   stream_manager_machine_size                   = "Standard_F2"                              # Instance size for Red5 Pro server
   stream_manager_api_key                        = ""                                         # Stream Manager api key
   azure_virtual_machine_password                = "Abc@1234"                                 # Virtual machine password which is to be used for created nodes of red5 pro.
+  
+  # Load Balancer Configuraion
+  ssl_certificate_pfx_path                      = ""                                       # Path of the PFX format SSL certificate used for the Load Balancer
+  ssl_certificate_pfx_password                  = ""                                       # Certificate password used while converting to PFX
 
   # Red5 Pro cluster Origin node image configuration
   origin_image_create                                      = true                          # Default: true for Autoscaling and Cluster, true - create new Origin node image, false - not create new Origin node image
