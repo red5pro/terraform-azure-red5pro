@@ -197,6 +197,11 @@ variable "virtual_machine_size" {
   type            = string
   default         = ""
 }
+variable "virtual_machine_storage_type" {
+  description     = "Red5 Pro single virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  type            = string
+  default         = "Premium_LRS"
+}
 variable "ssh_key_name" {
   description     = "SSH keys name to cretae ssh-key pair"
   type            = string

@@ -26,6 +26,12 @@ $ terraform apply
 * To activate HTTPS/SSL you need to add DNS A record for Elastic IP of Red5 Pro server
 * Note that this example may create resources which can cost money. Run `terraform destroy` when you don't need these resources.
 
+## Azure regions
+
+```
+australiacentral,australiacentral2,australiaeast,australiasoutheast,brazilsouth,brazilsoutheast,brazilus,canadacentral,canadaeast,centralindia,centralus,centraluseuap,eastasia,eastus,eastus2,eastus2euap,francecentral,francesouth,germanynorth,germanywestcentral,israelcentral,italynorth,japaneast,japanwest,jioindiacentral,jioindiawest,koreacentral,koreasouth,malaysiasouth,mexicocentral,northcentralus,northeurope,norwayeast,norwaywest,polandcentral,qatarcentral,southafricanorth,southafricawest,southcentralus,southeastasia,southindia,spaincentral,swedencentral,swedensouth,switzerlandnorth,switzerlandwest,uaecentral,uaenorth,uksouth,ukwest,westcentralus,westeurope,westindia,westus,westus2,westus3,austriaeast,centralusfoundational,chilecentral,eastusslv,israelnorthwest,malaysiawest,newzealandnorth,westeuropefoundational
+```
+
 ## Requirements
 
 | Name | Version |

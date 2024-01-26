@@ -1,4 +1,3 @@
-
 output "ssh_private_key_path" {
     description = "SSH private key path"
     value       = module.red5pro_single.ssh_private_key_path
@@ -17,5 +16,5 @@ output "red5pro_server_https_url" {
 }
 output "resource_group_name" {
     description = "Resource group name used for deployment"
-    value       = module.red5pro_autoscaling.resource_group_name
+    value       = module.red5pro_single.resource_group_name
 }

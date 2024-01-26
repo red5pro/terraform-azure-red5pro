@@ -78,6 +78,14 @@ output "single_red5pro_server_https_url" {
   value = local.single && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
 }
 
+output "single_red5pro_server_ip" {
+  description = "Single Red5 Pro Server IP"
+  value = local.single_server_ip
+}
+
+
+
+
 output "load_balancer_url" {
   description = "Load Balancer URL of Red5 Pro server"
   value       = local.autoscaling ? "https://${azurerm_public_ip.lb_ip[0].ip_address}:443" : null
