@@ -12,7 +12,7 @@ provider "azurerm" {
 
 module "red5pro_single" {
   source                    = "../../"
-  azure_region              = "eastus"                                                 # Azure region where resources will create eg: centralindia
+  azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
   existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, Provide the existing resouce group name

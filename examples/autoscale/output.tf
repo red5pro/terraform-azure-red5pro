@@ -68,3 +68,8 @@ output "resource_group_name" {
   description = "Resource group name used for deployment"
   value       = module.red5pro_autoscaling.resource_group_name
 }
+
+output "terraform_service_ip" {
+  description = "Terraform service IP address"
+  value       = module.red5pro_autoscaling.terraform_service_ip
+}

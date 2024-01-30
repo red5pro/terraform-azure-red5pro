@@ -75,16 +75,13 @@ output "single_red5pro_server_http_url" {
 
 output "single_red5pro_server_https_url" {
   description = "Single Red5 Pro Server HTTPS URL"
-  value = local.single && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
+  value       = local.single && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
 }
 
 output "single_red5pro_server_ip" {
   description = "Single Red5 Pro Server IP"
-  value = local.single_server_ip
+  value       = local.single_server_ip
 }
-
-
-
 
 output "load_balancer_url" {
   description = "Load Balancer URL of Red5 Pro server"
@@ -94,4 +91,9 @@ output "load_balancer_url" {
 output "resource_group_name" {
   description = "Azure Resource Group name"
   value       = local.az_resource_group
+}
+
+output "terraform_service_ip" {
+  description = "Terraform service IP address"
+  value       = local.terraform_service_ip
 }
