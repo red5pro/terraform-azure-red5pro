@@ -2,6 +2,7 @@
 
 * **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
 * **Security Group** - This Terrform module create a new security group in Microsoft Azure.
+* **SSH KEYS** - This module can create and use already created SSH Keys
 * **Machine Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
 * **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
 

@@ -19,8 +19,8 @@ module "red5pro_cluster" {
   azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, Provide the existing resouce group name. The resource grup naming should be follwed in specified way eg: {Resource_group_prefix}-{region_name}.
-  new_azure_resource_group_name      = "TestGroup"                                           # If create_azure_resource_group = true, new resource group name to be used
+  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
+  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
   ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "cluster"                                                      # Deployment type: single, cluster, autoscaling

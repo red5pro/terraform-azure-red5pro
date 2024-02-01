@@ -5,7 +5,9 @@
 * **Instance Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
 * **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
 * **MySQL Database** - Users have flexibility to create a MySQL databse server in Microsoft Azure or install it locally on the Stream Manager
-* **Stream Manager** - instance will be created automatically for Stream Manager
+* **SSH KEYS** - This module can create and use already created SSH Keys
+* **Terraform Service** - Users has the flexibity to either create dedicate Terraform service instance or loacally install on the Stream Manager
+* **Stream Manager** - Instance will be created automatically for Stream Manager
 * **Origin Node Image** - To create Microsoft Azure(Azure) custom image for Orgin Node type for Stream Manager node group
 * **Edge Node Image** - To create Microsoft Azure(Azure) custom image for Edge Node type for Stream Manager node group (optional)
 * **Transcoder Node Image** - To create Microsoft Azure(Azure) custom image for Transcoder Node type for Stream Manager node group (optional)

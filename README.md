@@ -6,8 +6,8 @@ This a reusable Terraform installer module for [Red5 Pro](https://www.red5.net/d
 ## This module has 3 variants of Red5 Pro deployments
 
 * **single** - Single instance with installed and configured Red5 Pro server
-* **cluster** - Stream Manager cluster (MySQL DB + Stream Manager instance + Autoscaling Node group with Origin, Edge, Transcoder, Relay droplets)
-* **autoscaling** - Autoscaling Stream Managers (MySQL DB + Load Balancer + Autoscaling Stream Managers + Autoscaling Node group with Origin, Edge, Transcoder, Relay droplets)
+* **cluster** - Stream Manager cluster (MySQL DB + Stream Manager instance + Terraform Service + Autoscaling Node group with Origin, Edge, Transcoder, Relay droplets)
+* **autoscaling** - Autoscaling Stream Managers (MySQL DB + Load Balancer + Autoscaling Stream Managers + Terraform Service + Autoscaling Node group with Origin, Edge, Transcoder, Relay droplets)
 
 ---
 
@@ -32,12 +32,12 @@ This a reusable Terraform installer module for [Red5 Pro](https://www.red5.net/d
 * Install **Microsoft Azure CLI** https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 * Install **jq** Linux or Mac OS only - `apt install jq` or `brew install jq` (It is using in bash scripts to create/delete Stream Manager node group using API)
 * Download Red5 Pro server build: (Example: red5pro-server-0.0.0.b0-release.zip) https://account.red5pro.com/downloads
-* Download Red5 Pro Terraform controller for Digital Ocean: (Example: terraform-cloud-controller-0.0.0.jar) https://account.red5pro.com/downloads
+* Download Red5 Pro Terraform controller : (Example: terraform-cloud-controller-0.0.0.jar) https://account.red5pro.com/downloads
 * Download Red5 Pro Terraform Service : (Example: terraform-service-0.0.0.zip) https://account.red5pro.com/downloads
 * Get Red5 Pro License key: (Example: 1111-2222-3333-4444) https://account.red5pro.com
 * Login to microsoft azure cli (To login to CLI follow the below documents) 
   * Follow the documentation for generating API keys - https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli
-* Copy Red5 Pro server build and Terraform controller to the root folder of your project
+* Copy Red5 Pro server build, Terraform controller and Terraform service to the root folder of your project
 
 Example:  
 
@@ -47,10 +47,11 @@ cp ~/Downloads/terraform-cloud-controller-0.0.0.jar ./
 cp ~/Downloads/terraform-service-0.0.0.zip ./
 ```
 
-## Single Red5 Pro server deployment (single) - [Example](https://github.com/red5pro/terraform-azure-red5pro/)
+## Single Red5 Pro server deployment (single) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/single)
 
 * **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
 * **Security Group** - This Terrform module create a new security group in Microsoft Azure.
+* **SSH KEYS** - This module can create and use already created SSH Keys
 * **Machine Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
 * **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
 
@@ -62,8 +63,8 @@ module "red5pro_single" {
   azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, Provide the existing resouce group name
-  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, new resource group name to be used
+  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
+  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
   ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "single"                                                       # Deployment type: single, cluster, autoscaling
@@ -119,14 +120,16 @@ output "module_output" {
 
 ---
 
-## Red5 Pro Stream Manager cluster deployment (cluster) - [Example](https://github.com/red5pro/terraform-azure-red5pro/)
+## Red5 Pro Stream Manager cluster deployment (cluster) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/cluster)
 
 * **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
 * **Security Group** - This Terrform module create a new security group in Microsoft Azure.
 * **Instance Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
 * **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
 * **MySQL Database** - Users have flexibility to create a MySQL databse server in Microsoft Azure or install it locally on the Stream Manager
-* **Stream Manager** - instance will be created automatically for Stream Manager
+* **SSH KEYS** - This module can create and use already created SSH Keys
+* **Terraform Service** - Users has the flexibity to either create dedicate Terraform service instance or loacally install on the Stream Manager
+* **Stream Manager** - Instance will be created automatically for Stream Manager
 * **Origin Node Image** - To create Microsoft Azure(Azure) custom image for Orgin Node type for Stream Manager node group
 * **Edge Node Image** - To create Microsoft Azure(Azure) custom image for Edge Node type for Stream Manager node group (optional)
 * **Transcoder Node Image** - To create Microsoft Azure(Azure) custom image for Transcoder Node type for Stream Manager node group (optional)
@@ -144,8 +147,8 @@ module "red5pro_cluster" {
   azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, Provide the existing resouce group name. The resource grup naming should be follwed in specified way eg: {Resource_group_prefix}-{region_name}.
-  new_azure_resource_group_name      = "TestGroup"                                           # If create_azure_resource_group = true, new resource group name to be used
+  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
+  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
   ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "cluster"                                                      # Deployment type: single, cluster, autoscaling
@@ -244,14 +247,16 @@ output "module_output" {
   value = module.red5pro_cluster
 }
 ```
-## Red5 Pro Stream Manager autoscaling deployment (autoscaling) - [Example](https://github.com/red5pro/terraform-azure-red5pro/)
+## Red5 Pro Stream Manager autoscaling deployment (autoscaling) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/autoscale)
 
 * **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
 * **Security Group** - This Terrform module create a new security group in Microsoft Azure.
 * **Instance Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
 * **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
 * **MySQL Database** - Users have flexibility to create a MySQL databse server in Microsoft Azure or install it locally on the Stream Manager
-* **Stream Manager** - instance will be created automatically for Stream Manager
+* **SSH KEYS** - This module can create and use already created SSH Keys
+* **Terraform Service** - This module create dedicate Terraform service instance for the Stream Manager
+* **Stream Manager** - Instance will be created automatically for Stream Manager
 * **Application Gateway** - This Terraform Module create the application gateway to distribute the requests.
 * **Origin Node Image** - To create Microsoft Azure(Azure) custom image for Orgin Node type for Stream Manager node group
 * **Edge Node Image** - To create Microsoft Azure(Azure) custom image for Edge Node type for Stream Manager node group (optional)
@@ -270,8 +275,8 @@ module "red5pro_autoscaling" {
   azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, Provide the existing resouce group name. The resource grup naming should be follwed in specified way eg: {Resource_group_prefix}-{region_name}.
-  new_azure_resource_group_name      = "TestGroup"                                           # If create_azure_resource_group = true, new resource group name to be used
+  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
+  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
   ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "autoscaling"                                                  # Deployment type: single, cluster, autoscaling
