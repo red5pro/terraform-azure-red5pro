@@ -848,32 +848,6 @@ variable "origin_red5pro_cloudstorage_postprocessor_enable" {
   default     = false
 }
 
-variable "edge_red5pro_cloudstorage_enable" {
-  description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
-  type        = bool
-  default     = false
-}
-variable "edge_red5pro_azure_storage_account_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account name "
-  type        = string
-  default     = ""
-}
-variable "edge_red5pro_azure_storage_account_key" {
-  description = "Red5 Pro server cloud storage - Azure storage account key"
-  type        = string
-  default     = ""
-}
-variable "edge_red5pro_azure_storage_container_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account container name"
-  type        = string
-  default     = ""
-}
-variable "edge_red5pro_cloudstorage_postprocessor_enable" {
-  description = "Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/)"
-  type        = bool
-  default     = false
-}
-
 variable "transcoder_red5pro_cloudstorage_enable" {
   description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
   type        = bool
@@ -899,30 +873,3 @@ variable "transcoder_red5pro_cloudstorage_postprocessor_enable" {
   type        = bool
   default     = false
 }
-
-variable "relay_red5pro_cloudstorage_enable" {
-  description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
-  type        = bool
-  default     = false
-}
-variable "relay_red5pro_azure_storage_account_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account name "
-  type        = string
-  default     = ""
-}
-variable "relay_red5pro_azure_storage_account_key" {
-  description = "Red5 Pro server cloud storage - Azure storage account key"
-  type        = string
-  default     = ""
-}
-variable "relay_red5pro_azure_storage_container_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account container name"
-  type        = string
-  default     = ""
-}
-variable "relay_red5pro_cloudstorage_postprocessor_enable" {
-  description = "Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/)"
-  type        = bool
-  default     = false
-}
-
