@@ -179,7 +179,7 @@ module "red5pro_cluster" {
   terraform_service_api_key         = ""                                                     # Terraform service api key
   terraform_service_parallelism     = "20"                                                   # Terraform service parallelism
   terraform_service_machine_size    = "Standard_F2s_v2"                                      # Instance size for Terraform service
-  terraform_service_machine_storage_type    = "Standard_LRS"                                 # Terraform service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  terraform_service_machine_storage_type    = "Premium_LRS"                                  # Terraform service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
 
   # Red5 Pro general configuration
   red5pro_license_key                           = "1111-2222-3333-4444"                      # Red5 Pro license key (https://account.red5pro.com/login)
@@ -201,8 +201,8 @@ module "red5pro_cluster" {
 
   # Red5 Pro cluster Origin node image configuration
   origin_image_create                                      = true                          # Default: true for Autoscaling and Cluster, true - create new Origin node image, false - not create new Origin node image
-  origin_machine_size                                      = "Standard_F2s_v2"                 # Instance type for Origin node image
-  origin_machine_storage_type                              = "Premium_LRS"                            # Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  origin_machine_size                                      = "Standard_F2s_v2"             # Instance type for Origin node image
+  origin_machine_storage_type                              = "Premium_LRS"                 # Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
   origin_image_red5pro_inspector_enable                    = false                         # true - enable Red5 Pro server inspector, false - disable Red5 Pro server inspector (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)
   origin_image_red5pro_restreamer_enable                   = false                         # true - enable Red5 Pro server restreamer, false - disable Red5 Pro server restreamer (https://www.red5pro.com/docs/special/restreamer/overview/)
   origin_image_red5pro_socialpusher_enable                 = false                         # true - enable Red5 Pro server socialpusher, false - disable Red5 Pro server socialpusher (https://www.red5pro.com/docs/special/social-media-plugin/overview/)
