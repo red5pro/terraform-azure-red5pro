@@ -36,7 +36,7 @@ variable "ubuntu_image_sku" {
 }
 
 variable "ubuntu_version" {
-  description     = "Ubuntu version which is going to be used for creating droplet in Digital Ocean"
+  description     = "Ubuntu version which is going to be used for creating machine in Azure"
   type            = string
   default         = "20.04"
   validation {
@@ -142,7 +142,7 @@ variable "azure_region" {
 
 # VPC configuration
 variable "vpc_cidr_block" {
-  description     = "Digital Ocean VPC IP range for Red5 Pro"
+  description     = "VPC IP range for Red5 Pro"
   type            = string
   default         = "10.0.0.0/16"
 }
