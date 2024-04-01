@@ -9,8 +9,8 @@ locals {
   private_ssh_key                      = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].private_key_pem : file(var.existing_private_ssh_key_path)
   stream_manager_ip                    = local.autoscaling ? azurerm_public_ip.lb_ip[0].ip_address : local.cluster ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
   mysql_local_enable                   = local.autoscaling ? false : local.cluster && var.mysql_database_create ? false : local.cluster && var.terraform_service_instance_create ? false : true
-  mysql_host                           = local.autoscaling ? azurerm_mysql_server.red5_database[0].fqdn : local.cluster && var.mysql_database_create ? azurerm_mysql_server.red5_database[0].fqdn : local.cluster && var.terraform_service_instance_create ? azurerm_mysql_server.red5_database[0].fqdn : "localhost"
-  mysql_username                       = local.autoscaling ? "${var.mysql_username}@${azurerm_mysql_server.red5_database[0].fqdn}" : local.cluster && var.mysql_database_create ? "${var.mysql_username}@${azurerm_mysql_server.red5_database[0].fqdn}" : local.cluster && var.terraform_service_instance_create ? "${var.mysql_username}@${azurerm_mysql_server.red5_database[0].fqdn}" : "${var.mysql_username}@localhost"
+  mysql_host                           = local.autoscaling ? azurerm_mysql_flexible_server.red5_database[0].fqdn : local.cluster && var.mysql_database_create ? azurerm_mysql_flexible_server.red5_database[0].fqdn : local.cluster && var.terraform_service_instance_create ? azurerm_mysql_flexible_server.red5_database[0].fqdn : "localhost"
+  mysql_username                       = local.autoscaling ? var.mysql_username : local.cluster && var.mysql_database_create ? var.mysql_username : local.cluster && var.terraform_service_instance_create ? var.mysql_username : "localhost"
   mysql_db_system_create               = local.autoscaling ? true : local.cluster && var.mysql_database_create ? true : local.cluster && var.terraform_service_instance_create ? true : false
   single_server_ip                     = local.single ? azurerm_linux_virtual_machine.red5_single[0].public_ip_address : null
   cluster_or_autoscaling               = local.cluster || local.autoscaling ? true : false
@@ -83,6 +83,15 @@ resource "azurerm_subnet" "vpc_subnet" {
   virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
   address_prefixes     = cidrsubnets(var.vpc_cidr_block, 4)
   service_endpoints    = ["Microsoft.Sql"]
+  delegation {
+    name = "Microsoft.DBforMySQL/flexibleServers"
+    service_delegation {
+      name = "Microsoft.DBforMySQL/flexibleServers"
+    }
+  }
+  lifecycle {
+    ignore_changes = [ delegation ]
+  }
 }
 
 resource "azurerm_subnet" "vpc_subnet_default" {
@@ -123,7 +132,7 @@ resource "azurerm_network_interface" "red5_single_network_interface" {
 
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-red5-single-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.single_public-ip[0].id
   }
@@ -171,7 +180,7 @@ resource "azurerm_network_interface" "node_network_interface" {
   resource_group_name = local.az_resource_group
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-node-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.node_public_ip[0].id
   }
@@ -230,7 +239,7 @@ resource "azurerm_network_interface" "terraform_service_network_interface" {
   resource_group_name = local.az_resource_group
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-terraform-service-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.terraform_service_public_ip[0].id
   }
@@ -278,7 +287,7 @@ resource "azurerm_network_interface" "sm_network_interface" {
   resource_group_name = local.az_resource_group
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-sm-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.sm_public_ip[0].id
   }
@@ -620,35 +629,30 @@ resource "azurerm_linux_virtual_machine" "red5_terraform_service" {
 ################################################################################
 # Red5 Pro MySQL Database
 ################################################################################
-resource "azurerm_mysql_server" "red5_database" {
+resource "azurerm_mysql_flexible_server" "red5_database" {
   count               = local.mysql_db_system_create ? 1 : 0
   name                = "${var.name}-${var.azure_region}-red5-mysql-server"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
 
   administrator_login          = var.mysql_username
-  administrator_login_password = var.mysql_password
+  administrator_password       = var.mysql_password
 
-  sku_name   = var.mysql_database_sku
-  storage_mb = var.mysql_storage_mb
-  version    = "8.0"
-
-  auto_grow_enabled                 = true
+  sku_name            = var.mysql_database_sku
+  storage {
+    size_gb           = var.mysql_storage_mb
+    auto_grow_enabled = true
+  }
+  version                           = "8.0.21"
   backup_retention_days             = 7
   geo_redundant_backup_enabled      = false
-  infrastructure_encryption_enabled = false
-  public_network_access_enabled     = true
-  ssl_enforcement_enabled           = false
-  ssl_minimal_tls_version_enforced  = "TLSEnforcementDisabled"
+  delegated_subnet_id               = azurerm_subnet.vpc_subnet[0].id
+  lifecycle {
+    ignore_changes = [ high_availability[0].standby_availability_zone, zone ]
+  }
+  depends_on = [ azurerm_subnet.vpc_subnet_default ]
 }
 
-resource "azurerm_mysql_virtual_network_rule" "mysql_network_rule" {
-  count               = local.mysql_db_system_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-mysql-virtual-network-rule"
-  resource_group_name = local.az_resource_group
-  server_name         = azurerm_mysql_server.red5_database[0].name
-  subnet_id           = azurerm_subnet.vpc_subnet[0].id
-}
 ################################################################################
 # Red5 Pro Load Balancer  (Azure Autoscale)
 ################################################################################
@@ -770,7 +774,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
     ip_configuration {
       name      = "${var.name}-vm-scale-set-nic-ipconfig"
       primary   = true
-      subnet_id = azurerm_subnet.vpc_subnet[0].id
+      subnet_id = azurerm_subnet.vpc_subnet_default[0].id
       application_gateway_backend_address_pool_ids = azurerm_application_gateway.red5_gateway[0].backend_address_pool[*].id
 
     }
@@ -1327,11 +1331,10 @@ resource "time_sleep" "wait_for_delete_nodegroup" {
   count      = var.node_group_create ? 1 : 0
   depends_on = [
     azurerm_linux_virtual_machine.red5_stream_manager[0],
-    azurerm_mysql_server.red5_database[0],
+    azurerm_mysql_flexible_server.red5_database[0],
     azurerm_network_interface_security_group_association.sm_network_interface_security_association[0],
     azurerm_network_security_group.red5_stream_manager_network_security_group[0],
-    azurerm_mysql_server.red5_database[0],
-    azurerm_mysql_virtual_network_rule.mysql_network_rule[0],
+    azurerm_mysql_flexible_server.red5_database[0],
     azurerm_application_gateway.red5_gateway[0],
     azurerm_linux_virtual_machine_scale_set.autoscale_sm[0],
     azurerm_network_interface.node_network_interface[0],

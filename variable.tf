@@ -194,7 +194,7 @@ variable "mysql_username" {
 variable "mysql_database_sku" {
   description     = "MySQL database size"
   type            = string
-  default         = "GP_Gen5_2"
+  default         = "GP_Standard_D2ds_v4"
 }
 variable "mysql_storage_mb" {
   description     = "MySQL storage"

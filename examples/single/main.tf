@@ -16,7 +16,7 @@ module "red5pro_single" {
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
   existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
-  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
+  new_azure_resource_group_name      = "example-group-name"                                  # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
   ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "single"                                                       # Deployment type: single, cluster, autoscaling

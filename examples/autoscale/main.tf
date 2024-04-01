@@ -20,7 +20,7 @@ module "red5pro_autoscaling" {
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
   existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
-  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
+  new_azure_resource_group_name      = "example-group-name"                                  # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
   ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "autoscaling"                                                  # Deployment type: single, cluster, autoscaling
@@ -39,10 +39,10 @@ module "red5pro_autoscaling" {
   vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
 
   # Database Configuration
-  mysql_database_sku        = "GP_Gen5_2"                                                    # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
+  mysql_database_sku        = "GP_Standard_D2ds_v4"                                          # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. GP_Standard_D2ds_v4, GP_Standard_D2ds_v5).
   mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
-  mysql_username            = "example-user"                                                 # Username for locally install databse and dedicated database in azure
-  mysql_password            = "@E1example-password"                                          # Password for locally install databse and dedicated database in azure
+  mysql_username            = "example_user"                                                 # Username for locally install databse and dedicated database in azure
+  mysql_password            = "Abc@123abc456ABC"                                             # Password for locally install databse and dedicated database in azure
   mysql_port                = 3306                                                           # Port for locally install databse and dedicated database in azure
 
   # Red5 Pro general configuration

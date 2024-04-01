@@ -209,8 +209,11 @@ config_terraform_service(){
 
     local do_ssh_key_pattern='cloud.do_ssh_key_name=.*'
     local do_ssh_key_pattern_new='#cloud.do_ssh_key_name=.*'
+
+    local db_ssl_pattern='config.dbSSL=.*'
+    local db_ssl_pattern_new='config.dbSSL=true'
     
-    sed -i -e "s|$terraform_api_key_pattern|$terraform_api_key_new|" -e "s|$terra_parallelism_pattern|$terra_parallelism_new|" -e "s|$azure_resource_group_pattern|$azure_resource_group_pattern_new|" -e "s|$azure_prefix_name|$azure_prefix_name_new|" -e "s|$azure_client_id|$azure_client_id_new|" -e "s|$azure_client_secret|$azure_client_secret_new|" -e "s|$azure_tenant_id|$azure_tenant_id_new|" -e "s|$azure_subscription_id|$azure_subscription_id_new|" -e "s|$azure_virtual_machine_password|$azure_virtual_machine_password_new|" -e "s|$azure_virtual_machine_username|$azure_virtual_machine_username_new|" -e "s|$db_host_pattern|$db_host_new|" -e "s|$db_port_pattern|$db_port_new|" -e "s|$db_user_pattern|$db_user_new|" -e "s|$db_password_pattern|$db_password_new|" -e "s|$do_api_token_pattern|$do_api_token_pattern_new|" -e "s|$do_ssh_key_pattern|$do_ssh_key_pattern_new|" "$TERRA_FOLDER/application.properties"
+    sed -i -e "s|$terraform_api_key_pattern|$terraform_api_key_new|" -e "s|$terra_parallelism_pattern|$terra_parallelism_new|" -e "s|$azure_resource_group_pattern|$azure_resource_group_pattern_new|" -e "s|$azure_prefix_name|$azure_prefix_name_new|" -e "s|$azure_client_id|$azure_client_id_new|" -e "s|$azure_client_secret|$azure_client_secret_new|" -e "s|$azure_tenant_id|$azure_tenant_id_new|" -e "s|$azure_subscription_id|$azure_subscription_id_new|" -e "s|$azure_virtual_machine_password|$azure_virtual_machine_password_new|" -e "s|$azure_virtual_machine_username|$azure_virtual_machine_username_new|" -e "s|$db_host_pattern|$db_host_new|" -e "s|$db_port_pattern|$db_port_new|" -e "s|$db_user_pattern|$db_user_new|" -e "s|$db_password_pattern|$db_password_new|" -e "s|$do_api_token_pattern|$do_api_token_pattern_new|" -e "s|$do_ssh_key_pattern|$do_ssh_key_pattern_new|" -e "s|$db_ssl_pattern|$db_ssl_pattern_new|" "$TERRA_FOLDER/application.properties"
 }
 
 start_terraform_service(){

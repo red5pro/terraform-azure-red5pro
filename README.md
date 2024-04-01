@@ -58,6 +58,15 @@ cp ~/Downloads/terraform-service-0.0.0.zip ./
 ## Usage (single)
 
 ```hcl
+provider "azurerm" {
+  features {}
+  client_id           = ""                                                             # Client id of the Azue account
+  client_secret       = ""                                                             # Client Secret id of the Azue account
+  subscription_id     = ""                                                             # Subscription id of the Azue account
+  tenant_id           = ""                                                             # Tenant id of the Azue account
+  skip_provider_registration = true
+}
+
 module "red5pro_single" {
   source                    = "../../"
   azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
@@ -138,6 +147,15 @@ output "module_output" {
 ## Usage (cluster)
 
 ```hcl
+provider "azurerm" {
+  features {}
+  client_id           = ""                                                             # Client id of the Azue account
+  client_secret       = ""                                                             # Client Secret id of the Azue account
+  subscription_id     = ""                                                             # Subscription id of the Azue account
+  tenant_id           = ""                                                             # Tenant id of the Azue account
+  skip_provider_registration = true
+}
+
 module "red5pro_cluster" {
   source                    = "../../"
   azure_client_id           = ""                                                             # Client id of the Azue account
@@ -167,11 +185,11 @@ module "red5pro_cluster" {
   vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
 
   # Database Configuration
-  mysql_database_create     = true                                                           # true - create a new database false- Install locally
-  mysql_database_sku        = "GP_Gen5_2"                                                    # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
+  mysql_database_create     = true                                                           # true - create a new database false- Install locally on the stream manager
+  mysql_database_sku        = "GP_Standard_D2ds_v4"                                          # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. GP_Standard_D2ds_v4, GP_Standard_D2ds_v5).
   mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
-  mysql_username            = "example-user"                                                 # Username for locally install databse and dedicated database in azure
-  mysql_password            = "Abc@123abc45!@2"                                              # Password for locally install databse and dedicated database in azure
+  mysql_username            = "example_user"                                                 # Username for locally install databse and dedicated database in azure
+  mysql_password            = "Abc@123abc456ABC"                                             # Password for locally install databse and dedicated database in azure
   mysql_port                = 3306                                                           # Port for locally install databse and dedicated database in azure
 
   # Terraform Service configuration
@@ -266,6 +284,15 @@ output "module_output" {
 ## Usage (autoscaling)
 
 ```hcl
+provider "azurerm" {
+  features {}
+  client_id           = ""                                                             # Client id of the Azue account
+  client_secret       = ""                                                             # Client Secret id of the Azue account
+  subscription_id     = ""                                                             # Subscription id of the Azue account
+  tenant_id           = ""                                                             # Tenant id of the Azue account
+  skip_provider_registration = true
+}
+
 module "red5pro_autoscaling" {
   source                    = "../../"
   azure_client_id           = ""                                                             # Client id of the Azue account
@@ -295,10 +322,10 @@ module "red5pro_autoscaling" {
   vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
 
   # Database Configuration
-  mysql_database_sku        = "GP_Gen5_2"                                                    # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. B_Gen5_1, GP_Gen5_8).
+  mysql_database_sku        = "GP_Standard_D2ds_v4"                                          # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. GP_Standard_D2ds_v4, GP_Standard_D2ds_v5).
   mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
-  mysql_username            = "example-user"                                                 # Username for locally install databse and dedicated database in azure
-  mysql_password            = "@E1example-password"                                          # Password for locally install databse and dedicated database in azure
+  mysql_username            = "example_user"                                                 # Username for locally install databse and dedicated database in azure
+  mysql_password            = "Abc@123abc456ABC"                                             # Password for locally install databse and dedicated database in azure
   mysql_port                = 3306                                                           # Port for locally install databse and dedicated database in azure
 
   # Red5 Pro general configuration
@@ -375,7 +402,6 @@ output "module_output" {
   sensitive = true
   value = module.red5pro_autoscaling
 }
-
 ```
 
 ---
