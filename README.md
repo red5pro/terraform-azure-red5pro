@@ -242,19 +242,23 @@ module "red5pro_cluster" {
   node_group_create                   = true                                               # Linux or Mac OS only. true - create new Node group, false - not create new Node group
   node_group_name                     = "example-node-group"                               # Node group name
   # Origin node configuration
-  node_group_origins                  = 1                                                  # Number of Origins
+  node_group_origins_min               = 1                                                 # Number of minimum Origins
+  node_group_origins_max               = 20                                                # Number of maximum Origins
   node_group_origins_machine_size     = "Standard_F2s_v2"                                  # Origins azure instance
   node_group_origins_capacity         = 30                                                 # Connections capacity for Origins
   # Edge node configuration
-  node_group_edges                    = 1                                                  # Number of Edges
+  node_group_edges_min                 = 1                                                 # Number of minimum Edges
+  node_group_edges_max                 = 40                                                # Number of maximum Edges
   node_group_edges_machine_size       = "Standard_F2s_v2"                                  # Edges azure instance
   node_group_edges_capacity           = 300                                                # Connections capacity for Edges
   # Transcoder node configuration
-  node_group_transcoders              = 1                                                  # Number of Transcoders
+  node_group_transcoders_min           = 0                                                 # Number of minimum Transcoders
+  node_group_transcoders_max           = 20                                                # Number of maximum Transcoders
   node_group_transcoders_machine_size = "Standard_F2s_v2"                                  # Transcodersazure instance
   node_group_transcoders_capacity     = 30                                                 # Connections capacity for Transcoders
   # Relay node configuration
-  node_group_relays                   = 1                                                  # Number of Relays
+  node_group_relays_min                = 0                                                 # Number of minimum Relays
+  node_group_relays_max                = 20                                                # Number of maximum Relays
   node_group_relays_machine_size      = "Standard_F2s_v2"                                  # Relays azure instance
   node_group_relays_capacity          = 30                                                 # Connections capacity for Relays
 
@@ -380,19 +384,23 @@ module "red5pro_autoscaling" {
   node_group_create                   = true                                               # Linux or Mac OS only. true - create new Node group, false - not create new Node group
   node_group_name                     = "example-node-group"                               # Node group name
   # Origin node configuration
-  node_group_origins                  = 1                                                  # Number of Origins
+  node_group_origins_min               = 1                                                 # Number of minimum Origins
+  node_group_origins_max               = 20                                                # Number of maximum Origins
   node_group_origins_machine_size     = "Standard_F2s_v2"                                  # Origins azure instance
   node_group_origins_capacity         = 30                                                 # Connections capacity for Origins
   # Edge node configuration
-  node_group_edges                    = 1                                                  # Number of Edges
+  node_group_edges_min                 = 1                                                 # Number of minimum Edges
+  node_group_edges_max                 = 40                                                # Number of maximum Edges
   node_group_edges_machine_size       = "Standard_F2s_v2"                                  # Edges azure instance
   node_group_edges_capacity           = 300                                                # Connections capacity for Edges
   # Transcoder node configuration
-  node_group_transcoders              = 1                                                  # Number of Transcoders
+  node_group_transcoders_min           = 0                                                 # Number of minimum Transcoders
+  node_group_transcoders_max           = 20                                                # Number of maximum Transcoders
   node_group_transcoders_machine_size = "Standard_F2s_v2"                                  # Transcodersazure instance
   node_group_transcoders_capacity     = 30                                                 # Connections capacity for Transcoders
   # Relay node configuration
-  node_group_relays                   = 1                                                  # Number of Relays
+  node_group_relays_min                = 0                                                 # Number of minimum Relays
+  node_group_relays_max                = 20                                                # Number of maximum Relays
   node_group_relays_machine_size      = "Standard_F2s_v2"                                  # Relays azure instance
   node_group_relays_capacity          = 30                                                 # Connections capacity for Relays
 
