@@ -170,8 +170,10 @@ config_node_apps_plugins(){
         azure_container_name="azure.container.name=.*"
         azure_container_name_new="azure.container.name=${NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME}"
 
+        stream_dir="streams.dir=.*"
+        stream_dir_new="streams.dir=$RED5_HOME/webapps/"
 
-        sed -i -e "s|$azure_service|$azure_service_new|" -e "s|$max_transcode_min|$max_transcode_min_new|" -e "s|$azure_account_name|$azure_account_name_new|" -e "s|$azure_account_key|$azure_account_key_new|" -e "s|$azure_container_name|$azure_container_name_new|" "$RED5_HOME/conf/cloudstorage-plugin.properties"
+        sed -i -e "s|$azure_service|$azure_service_new|" -e "s|$stream_dir|$stream_dir_new|" -e "s|$max_transcode_min|$max_transcode_min_new|" -e "s|$azure_account_name|$azure_account_name_new|" -e "s|$azure_account_key|$azure_account_key_new|" -e "s|$azure_container_name|$azure_container_name_new|" "$RED5_HOME/conf/cloudstorage-plugin.properties"
 
         if [[ "$NODE_CLOUDSTORAGE_POSTPROCESSOR_ENABLE" == "true" ]]; then
             log_i "Config Azure Cloudstorage plugin - PostProcessor to FLV: $RED5_HOME/conf/red5-common.xml"
