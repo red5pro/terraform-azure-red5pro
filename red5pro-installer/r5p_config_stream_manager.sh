@@ -36,36 +36,12 @@ log() {
 config_sm_properties_azure(){
     log_i "Start configuration Stream Manager properties for Microsoft Azure"
     
-    if [ -z "$AZURE_RESOURCE_GROUP" ]; then
-        log_w "Variable AZURE_RESOURCE_GROUP is empty."
+    if [ -z "$TERRA_HOST" ]; then
+        log_w "Variable TERRA_HOST is empty."
         var_error=1
     fi
-    if [ -z "$AZURE_REGION" ]; then
-        log_w "Variable AZURE_REGION is empty."
-        var_error=1
-    fi
-    if [ -z "$AZURE_PREFIX_NAME" ]; then
-        log_w "Variable AZURE_PREFIX_NAME is empty."
-        var_error=1
-    fi
-    if [ -z "$AZURE_CLIENT_ID" ]; then
-        log_w "Variable AZURE_CLIENT_ID is empty."
-        var_error=1
-    fi
-    if [ -z "$AZURE_CLIENT_SECRET" ]; then
-        log_w "Variable AZURE_CLIENT_SECRET is empty."
-        var_error=1
-    fi
-    if [ -z "$AZURE_TENANT_ID" ]; then
-        log_w "Variable AZURE_TENANT_ID is empty."
-        var_error=1
-    fi
-    if [ -z "$AZURE_SUBSCRIPTION_ID" ]; then
-        log_w "Variable AZURE_SUBSCRIPTION_ID is empty."
-        var_error=1
-    fi
-    if [ -z "$AZURE_VIRTUAL_MACHINE_PASSWORD" ]; then
-        log_w "Variable AZURE_VIRTUAL_MACHINE_PASSWORD is empty."
+    if [ -z "$TERRA_API_KEY" ]; then
+        log_w "Variable TERRA_API_KEY is empty."
         var_error=1
     fi
     if [[ "$var_error" == "1" ]]; then
@@ -73,51 +49,23 @@ config_sm_properties_azure(){
         exit 1
     fi
     
-    local azure_resource_group_pattern='#az.resourceGroupName=.*'
-    local azure_resource_group_pattern_new="az.resourceGroupName=${AZURE_RESOURCE_GROUP}"
-
-    local azure_region='#az.resourceGroupRegion=.*'
-    local azure_region_new="az.resourceGroupRegion=${AZURE_REGION}"
-
-    local azure_prefix_name='#az.resourceNamePrefix=.*'
-    local azure_prefix_name_new="az.resourceNamePrefix=${AZURE_PREFIX_NAME}"
-
-    local azure_client_id='#az.clientId=.*'
-    local azure_client_id_new="az.clientId=${AZURE_CLIENT_ID}"
-
-    local azure_client_secret='#az.clientKey=.*'
-    local azure_client_secret_new="az.clientKey=${AZURE_CLIENT_SECRET}"
-
-    local azure_tenant_id='#az.tenantId=.*'
-    local azure_tenant_id_new="az.tenantId=${AZURE_TENANT_ID}"
-
-    local azure_subscription_id='#az.subscriptionId=.*'
-    local azure_subscription_id_new="az.subscriptionId=${AZURE_SUBSCRIPTION_ID}"
-
-    local azure_virtual_machine_password='#az.vmPassword=.*'
-    local azure_virtual_machine_password_new="az.vmPassword=${AZURE_VIRTUAL_MACHINE_PASSWORD}"
-
-    local azure_vm_name='#az.vmUsername=.*'
-    local azure_vm_name_new='az.vmUsername=ubuntu'
-
-    local azure_default_subnet_name='#az.defaultSubnetName=.*'
-    local azure_default_subnet_name_new='az.defaultSubnetName=default'
-
-    local azure_operation_timeout='#az.operationTimeoutMilliseconds=.*'
-    local azure_operation_timeout_new='az.operationTimeoutMilliseconds=120000'
-
-    local azure_quick_operation_response='#az.quickOperationResponse=.*'
-    local azure_quick_operation_response_new='az.quickOperationResponse=true'
-
-    local azure_quick_operation_response_delay='#az.quickResponseCheckInitialDelay=.*'
-    local azure_quick_operation_response_delay_new='az.quickResponseCheckInitialDelay=20000'
-
-    local azure_api_log_level='#az.apiLogLevel=.*'
-    local azure_api_log_level_new='az.apiLogLevel=BASIC'
-
+    local terra_region_pattern='#terra.regionNames=astasia, southeastasia.*'
+    local terra_region_new="terra.regionNames=eastasia, southeastasia, centralus, eastus, eastus2, westus, northcentralus, southcentralus, northeurope, westeurope, japanwest, japaneast, brazilsouth, australiaeast, australiasoutheast, southindia, centralindia, westindia, canadacentral, canadaeast, uksouth, ukwest, westcentralus, westus2, koreacentral, koreasouth"
     
-    sed -i -e "s|$azure_resource_group_pattern|$azure_resource_group_pattern_new|" -e "s|$azure_region|$azure_region_new|" -e "s|$azure_prefix_name|$azure_prefix_name_new|" -e "s|$azure_client_id|$azure_client_id_new|" -e "s|$azure_client_secret|$azure_client_secret_new|" -e "s|$azure_tenant_id|$azure_tenant_id_new|" -e "s|$azure_subscription_id|$azure_subscription_id_new|" -e "s|$azure_virtual_machine_password|$azure_virtual_machine_password_new|" -e "s|$azure_vm_name|$azure_vm_name_new|" -e "s|$azure_default_subnet_name|$azure_default_subnet_name_new|" -e "s|$azure_operation_timeout|$azure_operation_timeout_new|" -e "s|$azure_quick_operation_response|$azure_quick_operation_response_new|" -e "s|$azure_quick_operation_response_delay|$azure_quick_operation_response_delay_new|" -e "s|$azure_api_log_level|$azure_api_log_level_new|" "$RED5_HOME/webapps/streammanager/WEB-INF/red5-web.properties"
+    local terra_instance_name_pattern='#terra.instanceName=azure_droplet'
+    local terra_instance_name_new="terra.instanceName=azure_droplet"
     
+    local terra_host_pattern='#terra.host=.*'
+    local terra_host_new="terra.host=${TERRA_HOST}"
+    
+    local terra_port_pattern='#terra.port=.*'
+    local terra_port_new="terra.port=8083"
+    
+    local terra_token_pattern='#terra.token=.*'
+    local terra_token_new="terra.token=${TERRA_API_KEY}"
+    
+    sed -i -e "s|$terra_region_pattern|$terra_region_new|" -e "s|$terra_instance_name_pattern|$terra_instance_name_new|" -e "s|$terra_host_pattern|$terra_host_new|" -e "s|$terra_port_pattern|$terra_port_new|" -e "s|$terra_token_pattern|$terra_token_new|" "$RED5_HOME/webapps/streammanager/WEB-INF/red5-web.properties"
+        
 }
 
 config_sm_properties_main(){
@@ -161,31 +109,31 @@ config_sm_properties_main(){
 
     fi
 
-    local db_host_pattern='config.dbHost={host}'
+    local db_host_pattern='config.dbHost=.*'
     local db_host_new="config.dbHost=${DB_HOST}"
 
-    local db_port_pattern='config.dbPort=3306'
+    local db_port_pattern='config.dbPort=.*'
     local db_port_new="config.dbPort=${DB_PORT}"
 
-    local db_user_pattern='config.dbUser={username}'
+    local db_user_pattern='config.dbUser=.*'
     local db_user_new="config.dbUser=${DB_USER}"
 
-    local db_pass_pattern='config.dbPass={password}'
+    local db_pass_pattern='config.dbPass=.*'
     local db_pass_new="config.dbPass=${DB_PASSWORD}"
 
-    local node_prefix_pattern='instancecontroller.instanceNamePrefix={unique-value}'
+    local node_prefix_pattern='instancecontroller.instanceNamePrefix=.*'
     local node_prefix_new="instancecontroller.instanceNamePrefix=${NODE_PREFIX_NAME}"
 
-    local node_cluster_password_pattern='cluster.password=changeme'
+    local node_cluster_password_pattern='cluster.password=.*'
     local node_cluster_password_new="cluster.password=${NODE_CLUSTER_KEY}"
 
-    local node_api_token_pattern='serverapi.accessToken={node api security token}'
+    local node_api_token_pattern='serverapi.accessToken=.*'
     local node_api_token_new="serverapi.accessToken=${NODE_API_KEY}"
 
-    local sm_rest_token_pattern='rest.administratorToken='
+    local sm_rest_token_pattern='rest.administratorToken=.*'
     local sm_rest_token_new="rest.administratorToken=${SM_API_KEY}"
 
-    local sm_proxy_enabled_pattern='proxy.enabled=false'
+    local sm_proxy_enabled_pattern='proxy.enabled=.*'
     local sm_proxy_enabled_new='proxy.enabled=true'
 
     sudo sed -i -e "s|$db_host_pattern|$db_host_new|" -e "s|$db_port_pattern|$db_port_new|" -e "s|$db_user_pattern|$db_user_new|" -e "s|$db_pass_pattern|$db_pass_new|" -e "s|$node_prefix_pattern|$node_prefix_new|" -e "s|$node_cluster_password_pattern|$node_cluster_password_new|" -e "s|$node_api_token_pattern|$node_api_token_new|" -e "s|$sm_rest_token_pattern|$sm_rest_token_new|" -e "s|$sm_proxy_enabled_pattern|$sm_proxy_enabled_new|" "$RED5_HOME/webapps/streammanager/WEB-INF/red5-web.properties"
@@ -248,25 +196,30 @@ config_sm_applicationContext(){
     local def_controller='<!-- Default CONTROLLER -->'
     local def_controller_new='<!-- Disabled: Default CONTROLLER --> <!--'
 
-    local azure_controller='<!-- AWS CONTROLLER -->'
-    local azure_controller_new='--> <!-- AWS CONTROLLER -->'
+    local terra_controller='<!-- AWS CONTROLLER -->'
+    local terra_controller_new='--> <!-- AWS CONTROLLER -->'
 
-    local azure_controller_in='<!-- <bean id="apiBridge" class="com.red5pro.services.cloud.microsoft.component.AzureComputeController"'
-    local azure_controller_in_new='<bean id="apiBridge" class="com.red5pro.services.cloud.microsoft.component.AzureComputeController"'
+    local terra_controller_in='<!-- <bean id="apiBridge" class="com.red5pro.services.terraform.component.TerraformCloudController"'
+    local terra_controller_in_new='<bean id="apiBridge" class="com.red5pro.services.terraform.component.TerraformCloudController"'
 
-    local azure_controller_out='<property name="apiLogLevel" value="${az.apiLogLevel}"/> </bean> -->'
-    local azure_controller_out_new='<property name="apiLogLevel" value="${az.apiLogLevel}"/> </bean>'
+    local terra_controller_out='/> <property name="terraToken" value="${terra.token}"/> </bean> -->'
+    local terra_controller_out_new='/> <property name="terraToken" value="${terra.token}"/> </bean>'
 
-    sed -i -e "s|$def_controller|$def_controller_new|" -e "s|$azure_controller|$azure_controller_new|" -e "s|$azure_controller_in|$azure_controller_in_new|" -e "s|$azure_controller_out|$azure_controller_out_new|" "$RED5_HOME/webapps/streammanager/WEB-INF/applicationContext.xml"
+    sed -i -e "s|$def_controller|$def_controller_new|" -e "s|$terra_controller|$terra_controller_new|" -e "s|$terra_controller_in|$terra_controller_in_new|" -e "s|$terra_controller_out|$terra_controller_out_new|" "$RED5_HOME/webapps/streammanager/WEB-INF/applicationContext.xml"
 }
 
 config_sm_cors(){
-    log_i "Set CORS * in $RED5_HOME/webapps/streammanager/WEB-INF/web.xml"
+    log_i "Configuring CORS in $RED5_HOME/webapps/streammanager/WEB-INF/web.xml"
 
-    local STR1="<filter>\n<filter-name>CorsFilter</filter-name>\n<filter-class>org.apache.catalina.filters.CorsFilter</filter-class>\n<init-param>\n<param-name>cors.allowed.origins</param-name>\n<param-value>*</param-value>\n</init-param>\n<init-param>\n<param-name>cors.exposed.headers</param-name>\n<param-value>Access-Control-Allow-Origin</param-value>\n</init-param>\n<init-param>\n<param-name>cors.allowed.methods</param-name>\n<param-value>GET, POST, PUT, DELETE</param-value>\n</init-param>\n<async-supported>true</async-supported>\n</filter>"
-    local STR2="\n<filter-mapping>\n<filter-name>CorsFilter</filter-name>\n<url-pattern>/api/*</url-pattern>\n</filter-mapping>"
-    
-    sed -i "/<\/web-app>/i $STR1 $STR2" "$RED5_HOME/webapps/streammanager/WEB-INF/web.xml"
+    if grep -q "org.apache.catalina.filters.CorsFilter" "$RED5_HOME/webapps/streammanager/WEB-INF/web.xml" ; then
+        log_i "org.apache.catalina.filters.CorsFilter exist in the file web.xml - Start old style CORS configuration..."
+
+        local STR1="<filter>\n<filter-name>CorsFilter</filter-name>\n<filter-class>org.apache.catalina.filters.CorsFilter</filter-class>\n<init-param>\n<param-name>cors.allowed.origins</param-name>\n<param-value>*</param-value>\n</init-param>\n<init-param>\n<param-name>cors.exposed.headers</param-name>\n<param-value>Access-Control-Allow-Origin</param-value>\n</init-param>\n<init-param>\n<param-name>cors.allowed.methods</param-name>\n<param-value>GET, POST, PUT, DELETE</param-value>\n</init-param>\n<async-supported>true</async-supported>\n</filter>"
+        local STR2="\n<filter-mapping>\n<filter-name>CorsFilter</filter-name>\n<url-pattern>/api/*</url-pattern>\n</filter-mapping>"
+        sed -i "/<\/web-app>/i $STR1 $STR2" "$RED5_HOME/webapps/streammanager/WEB-INF/web.xml"
+    else
+        log_i "org.apache.catalina.filters.CorsFilter doesn't exist in the file web.xml - Leave it without changes."
+    fi
 }
 
 config_whip_whep(){

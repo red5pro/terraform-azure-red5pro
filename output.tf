@@ -55,15 +55,15 @@ output "stream_manager_ip" {
 
 output "stream_manager_http_url" {
   description = "Stream Manager HTTP URL"
-  value       = local.cluster || local.autoscaling ? "http://${local.stream_manager_ip}:5080" : null
+  value       = local.cluster ? "http://${local.stream_manager_ip}:5080" : null
 }
 
 output "stream_manager_https_url" {
   description = "Stream Manager HTTPS URL"
-  value       = local.cluster || local.autoscaling ? var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null : null
+  value       = local.cluster && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
 }
 
-output "single_red5pro_server_ip" {
+output "single_red5pro_single_server_ip" {
   description = "Signle server red5pro ip"
   value       = local.single_server_ip
 }
@@ -75,5 +75,25 @@ output "single_red5pro_server_http_url" {
 
 output "single_red5pro_server_https_url" {
   description = "Single Red5 Pro Server HTTPS URL"
-  value = local.single && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
+  value       = local.single && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
+}
+
+output "single_red5pro_server_ip" {
+  description = "Single Red5 Pro Server IP"
+  value       = local.single_server_ip
+}
+
+output "load_balancer_url" {
+  description = "Load Balancer URL of Red5 Pro server"
+  value       = local.autoscaling ? "https://${azurerm_public_ip.lb_ip[0].ip_address}:443" : null
+}
+
+output "resource_group_name" {
+  description = "Azure Resource Group name"
+  value       = local.az_resource_group
+}
+
+output "terraform_service_ip" {
+  description = "Terraform service IP address"
+  value       = local.terraform_service_ip
 }

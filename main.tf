@@ -1,16 +1,22 @@
 locals {
-  single                           = var.type == "single" ? true : false
-  cluster                          = var.type == "cluster" ? true : false
-  autoscaling                      = var.type == "autoscaling" ? true : false
-  ssh_private_key_path             = var.create_new_ssh_keys ? local_file.red5pro_ssh_key_pem[0].filename : var.existing_private_ssh_key_path
-  az_resource_group                = var.create_azure_resource_group ? azurerm_resource_group.az_resource_group[0].name : var.existing_azure_resource_group_name
-  public_ssh_key                   = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].public_key_openssh : file(var.existing_public_ssh_key_path)
-  private_ssh_key                  = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].private_key_pem : file(var.existing_private_ssh_key_path)
-  stream_manager_ip                = local.cluster || local.autoscaling ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
-  mysql_local_enable               = local.autoscaling ? false : local.cluster && var.mysql_database_create ? false : true
-  mysql_host                       = local.autoscaling ? azurerm_mysql_server.red5_database[0].fqdn : local.cluster && var.mysql_database_create ? azurerm_mysql_server.red5_database[0].fqdn : "localhost"
-  mysql_db_system_create           = local.autoscaling ? true : local.cluster && var.mysql_database_create ? true : false
-  single_server_ip                 = local.single ? azurerm_linux_virtual_machine.red5_single[0].public_ip_address : null
+  single                               = var.type == "single" ? true : false
+  cluster                              = var.type == "cluster" ? true : false
+  autoscaling                          = var.type == "autoscaling" ? true : false
+  ssh_private_key_path                 = var.create_new_ssh_keys ? local_file.red5pro_ssh_key_pem[0].filename : var.existing_private_ssh_key_path
+  az_resource_group                    = var.create_azure_resource_group ? azurerm_resource_group.az_resource_group[0].name : var.existing_azure_resource_group_name
+  resource_group_name_autoscaling      = var.create_azure_resource_group ? split("-${var.azure_region}", azurerm_resource_group.az_resource_group[0].name )[0] : split("-${var.azure_region}", var.existing_azure_resource_group_name)[0]
+  public_ssh_key                       = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].public_key_openssh : file(var.existing_public_ssh_key_path)
+  private_ssh_key                      = var.create_new_ssh_keys ? tls_private_key.red5pro_ssh_key[0].private_key_pem : file(var.existing_private_ssh_key_path)
+  stream_manager_ip                    = local.autoscaling ? azurerm_public_ip.lb_ip[0].ip_address : local.cluster ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
+  mysql_local_enable                   = local.autoscaling ? false : local.cluster && var.mysql_database_create ? false : local.cluster && var.terraform_service_instance_create ? false : true
+  mysql_host                           = local.autoscaling ? azurerm_mysql_flexible_server.red5_database[0].fqdn : local.cluster && var.mysql_database_create ? azurerm_mysql_flexible_server.red5_database[0].fqdn : local.cluster && var.terraform_service_instance_create ? azurerm_mysql_flexible_server.red5_database[0].fqdn : "localhost"
+  mysql_username                       = local.autoscaling ? var.mysql_username : local.cluster && var.mysql_database_create ? var.mysql_username : local.cluster && var.terraform_service_instance_create ? var.mysql_username : "localhost"
+  mysql_db_system_create               = local.autoscaling ? true : local.cluster && var.mysql_database_create ? true : local.cluster && var.terraform_service_instance_create ? true : false
+  single_server_ip                     = local.single ? azurerm_linux_virtual_machine.red5_single[0].public_ip_address : null
+  cluster_or_autoscaling               = local.cluster || local.autoscaling ? true : false
+  dedicated_terraform_service_create   = local.autoscaling ? true : local.cluster && var.terraform_service_instance_create ? true : false
+  terraform_service_local_enable       = local.autoscaling ? false : local.cluster && var.terraform_service_instance_create ? false : true
+  terraform_service_ip                 = local.autoscaling ? azurerm_linux_virtual_machine.red5_terraform_service[0].public_ip_address : local.cluster && var.terraform_service_instance_create ? azurerm_linux_virtual_machine.red5_terraform_service[0].public_ip_address : "localhost"
 }
 
 ################################################################################
@@ -50,7 +56,7 @@ resource "azurerm_ssh_public_key" "red5pro_ssh" {
 # Create a new resource group in azure account
 resource "azurerm_resource_group" "az_resource_group" {
   count               = var.create_azure_resource_group ? 1 : 0
-  name                = var.new_azure_resource_group_name
+  name                = "${var.new_azure_resource_group_name}-${var.azure_region}"
   location            = var.azure_region
 }
 
@@ -64,7 +70,7 @@ data "azurerm_resources" "existing_az_resource" {
 ################################################################################
 resource "azurerm_virtual_network" "red5_vpc" {
   count               = var.vpc_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-red5-vnet"
+  name                = "${var.name}-${var.azure_region}-vnet"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   address_space       = [var.vpc_cidr_block]
@@ -76,14 +82,32 @@ resource "azurerm_subnet" "vpc_subnet" {
   resource_group_name  = local.az_resource_group
   virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
   address_prefixes     = cidrsubnets(var.vpc_cidr_block, 4)
+  service_endpoints    = ["Microsoft.Sql"]
+  delegation {
+    name = "Microsoft.DBforMySQL/flexibleServers"
+    service_delegation {
+      name = "Microsoft.DBforMySQL/flexibleServers"
+    }
+  }
+  lifecycle {
+    ignore_changes = [ delegation ]
+  }
 }
 
 resource "azurerm_subnet" "vpc_subnet_default" {
-  count                = var.vpc_create ? 1 : 0
+  count                = local.cluster_or_autoscaling ? 1 : 0
   name                 = "default"
   resource_group_name  = local.az_resource_group
   virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
   address_prefixes     = [cidrsubnets(var.vpc_cidr_block, 4, 4)[count.index+1]]
+}
+
+resource "azurerm_subnet" "application_gateway_subnet_default" {
+  count                = local.cluster_or_autoscaling ? 1 : 0
+  name                 = "${var.name}-${var.azure_region}-red5-application-gateway-subnet"
+  resource_group_name  = local.az_resource_group
+  virtual_network_name = azurerm_virtual_network.red5_vpc[0].name
+  address_prefixes     = [cidrsubnets(var.vpc_cidr_block, 4, 4, 4)[count.index+2]]
 }
 
 ################################################################################
@@ -108,7 +132,7 @@ resource "azurerm_network_interface" "red5_single_network_interface" {
 
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-red5-single-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.single_public-ip[0].id
   }
@@ -132,11 +156,12 @@ resource "azurerm_network_security_group" "single_red5_network_security_group" {
   }
 }
 
-resource "azurerm_network_interface_security_group_association" "network-interface-security-association" {
+resource "azurerm_network_interface_security_group_association" "red5_single_network_interface_security_association" {
   count                     = local.single ? 1 : 0
   network_interface_id      = azurerm_network_interface.red5_single_network_interface[0].id
   network_security_group_id = azurerm_network_security_group.single_red5_network_security_group[0].id
 }
+
 ################################################################################
 # Red5 Pro Node Network Configuration
 ################################################################################
@@ -155,7 +180,7 @@ resource "azurerm_network_interface" "node_network_interface" {
   resource_group_name = local.az_resource_group
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-node-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.node_public_ip[0].id
   }
@@ -163,7 +188,7 @@ resource "azurerm_network_interface" "node_network_interface" {
 
 resource "azurerm_network_security_group" "red5_node_network_security_group" {
   count               = var.origin_image_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-red5-node-nsg"
+  name                = "${var.name}-${var.azure_region}-nsg-node"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   security_rule {
@@ -173,7 +198,7 @@ resource "azurerm_network_security_group" "red5_node_network_security_group" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_ranges    = var.origin_red5_tcp_nsg_ports
+    destination_port_ranges    = var.node_red5_tcp_nsg_ports
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -184,7 +209,7 @@ resource "azurerm_network_security_group" "red5_node_network_security_group" {
     access                     = "Allow"
     protocol                   = "Udp"
     source_port_range          = "*"
-    destination_port_ranges    = [var.origin_red5_udp_nsg_ports]
+    destination_port_ranges    = [var.node_red5_udp_nsg_ports]
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -197,10 +222,58 @@ resource "azurerm_network_interface_security_group_association" "node_network_in
 }
 
 ################################################################################
+# Red5 Pro Terraform Service Network Configuration
+################################################################################
+resource "azurerm_public_ip" "terraform_service_public_ip" {
+  count               = local.dedicated_terraform_service_create ? 1 : 0
+  name                = "${var.name}-${var.azure_region}-terraform-service-public-ip"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group
+  allocation_method   = "Dynamic"
+}
+
+resource "azurerm_network_interface" "terraform_service_network_interface" {
+  count               = local.dedicated_terraform_service_create ? 1 : 0
+  name                = "${var.name}-${var.azure_region}-terraform-service-network-interface"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group
+  ip_configuration {
+    name                          = "${var.name}-${var.azure_region}-terraform-service-ip-configuration"
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.terraform_service_public_ip[0].id
+  }
+}
+
+resource "azurerm_network_security_group" "terraform_service_network_security_group" {
+  count               = local.dedicated_terraform_service_create ? 1 : 0
+  name                = "${var.name}-${var.azure_region}-terraform-service-nsg"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group
+  security_rule {
+    name                       = "${var.name}-${var.azure_region}-terraform-service-tcp-nsg-rule"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = var.terraform_service_tcp_nsg_ports
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "terraform_service_network_interface_security_association" {
+  count                     = local.dedicated_terraform_service_create ? 1 : 0
+  network_interface_id      = azurerm_network_interface.terraform_service_network_interface[0].id
+  network_security_group_id = azurerm_network_security_group.terraform_service_network_security_group[0].id
+}
+
+################################################################################
 # Stream Manager Network Configuration
 ################################################################################
 resource "azurerm_public_ip" "sm_public_ip" {
-  count               = local.cluster || local.autoscaling ? 1 : 0
+  count               = local.cluster_or_autoscaling ? 1 : 0
   name                = "${var.name}-${var.azure_region}-sm-public-ip"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
@@ -208,38 +281,38 @@ resource "azurerm_public_ip" "sm_public_ip" {
 }
 
 resource "azurerm_network_interface" "sm_network_interface" {
-  count               = local.cluster || local.autoscaling ? 1 : 0
+  count               = local.cluster_or_autoscaling ? 1 : 0
   name                = "${var.name}-${var.azure_region}-sm-network-interface"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   ip_configuration {
     name                          = "${var.name}-${var.azure_region}-sm-ip-configuration"
-    subnet_id                     = azurerm_subnet.vpc_subnet[0].id
+    subnet_id                     = azurerm_subnet.vpc_subnet_default[0].id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.sm_public_ip[0].id
   }
 }
 
 resource "azurerm_network_security_group" "red5_stream_manager_network_security_group" {
-  count               = local.cluster || local.autoscaling ? 1 : 0
+  count               = local.cluster_or_autoscaling ? 1 : 0
   name                = "${var.name}-${var.azure_region}-red5-sm-nsg"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   security_rule {
-    name                       = "${var.name}-${var.azure_region}-red5-sm-nsg-rule"
+    name                       = "${var.name}-${var.azure_region}-red5-sm-nsg-tcp-rule"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_ranges    = var.stream_manager_red5_nsg_ports
+    destination_port_ranges    = var.stream_manager_red5_nsg_tcp_ports
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
 }
 
 resource "azurerm_network_interface_security_group_association" "sm_network_interface_security_association" {
-  count                     = local.cluster || local.autoscaling ? 1 : 0
+  count                     = local.cluster_or_autoscaling ? 1 : 0
   network_interface_id      = azurerm_network_interface.sm_network_interface[0].id
   network_security_group_id = azurerm_network_security_group.red5_stream_manager_network_security_group[0].id
 }
@@ -266,7 +339,7 @@ resource "azurerm_linux_virtual_machine" "red5_single" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.virtual_machine_storage_type
   }
 
   source_image_reference {
@@ -343,7 +416,7 @@ resource "azurerm_linux_virtual_machine" "red5_single" {
 # Red5 Pro Stream Manager  (Azure virtual Machine)
 ################################################################################
 resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
-  count               = local.cluster || local.autoscaling ? 1 : 0 
+  count               = local.cluster_or_autoscaling ? 1 : 0 
   name                = "${var.name}-${var.azure_region}-red5-stream-manager-vm"
   resource_group_name = local.az_resource_group
   location            = var.azure_region
@@ -360,7 +433,7 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.stream_manager_machine_storage_type
   }
 
   source_image_reference {
@@ -381,8 +454,13 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
   }
 
   provisioner "file" {
-    source      = var.path_to_azure_cloud_controller
-    destination = "/home/ubuntu/red5pro-installer/${basename(var.path_to_azure_cloud_controller)}"
+    source      = var.path_to_terraform_service_build
+    destination = "/home/ubuntu/red5pro-installer/${basename(var.path_to_terraform_service_build)}"
+  }
+
+  provisioner "file" {
+    source      = var.path_to_terraform_cloud_controller
+    destination = "/home/ubuntu/red5pro-installer/${basename(var.path_to_terraform_cloud_controller)}"
   }
 
   connection {
@@ -408,9 +486,13 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
       "export DB_LOCAL_ENABLE='${local.mysql_local_enable}'",
       "export DB_HOST='${local.mysql_host}'",
       "export DB_PORT='${var.mysql_port}'",
-      "export DB_USER='${var.mysql_username}'",
+      "export DB_USER='${local.mysql_username}'",
       "export DB_PASSWORD='${nonsensitive(var.mysql_password)}'",
-      "export AZURE_RESOURCE_GROUP='${local.az_resource_group}'",
+      "export TF_SVC_ENABLE='${local.terraform_service_local_enable}'",
+      "export TERRA_HOST='${local.terraform_service_ip}'",
+      "export TERRA_API_KEY='${var.terraform_service_api_key}'",
+      "export TERRA_PARALLELISM='${var.terraform_service_parallelism}'",
+      "export AZURE_RESOURCE_GROUP='${local.resource_group_name_autoscaling}'",
       "export AZURE_REGION='${var.azure_region}'",
       "export AZURE_PREFIX_NAME='${var.name}'",
       "export AZURE_CLIENT_ID='${var.azure_client_id}'",
@@ -422,6 +504,7 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
       "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_server_basic.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_mysql_local.sh",
+      "sudo -E /home/ubuntu/red5pro-installer/r5p_install_terraform_svc.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_config_stream_manager.sh",
       "sudo systemctl daemon-reload && sudo systemctl start red5pro",
       "nohup sudo -E /home/ubuntu/red5pro-installer/r5p_ssl_check_install.sh >> /home/ubuntu/red5pro-installer/r5p_ssl_check_install.log &",
@@ -458,48 +541,118 @@ resource "null_resource" "generalize_stream_manager_vm" {
     depends_on = [null_resource.dealocate_stream_manager_vm]
 }
 
+################################################################################
+# Red5 Pro Terraform Service  (Azure virtual Machine)
+################################################################################
+resource "azurerm_linux_virtual_machine" "red5_terraform_service" {
+  count               = local.dedicated_terraform_service_create ? 1 : 0 
+  name                = "${var.name}-${var.azure_region}-red5-terraform-service-vm"
+  resource_group_name = local.az_resource_group
+  location            = var.azure_region
+  size                = var.terraform_service_machine_size
+  admin_username      = "ubuntu"
+  network_interface_ids = [
+    azurerm_network_interface.terraform_service_network_interface[0].id,
+  ]
+
+  admin_ssh_key {
+    username          = "ubuntu"
+    public_key        = local.public_ssh_key
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = var.terraform_service_machine_storage_type
+  }
+
+  source_image_reference {
+    publisher        = "Canonical"
+    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
+    version          = "latest"
+  }
+
+  provisioner "file" {
+    source      = "${abspath(path.module)}/red5pro-installer"
+    destination = "/home/ubuntu/"
+  }
+
+  provisioner "file" {
+    source      = var.path_to_terraform_service_build
+    destination = "/home/ubuntu/red5pro-installer/${basename(var.path_to_terraform_service_build)}"
+  }
+
+  provisioner "file" {
+    source      = var.path_to_terraform_cloud_controller
+    destination = "/home/ubuntu/red5pro-installer/${basename(var.path_to_terraform_cloud_controller)}"
+  }
+
+  connection {
+    host        = self.public_ip_address
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = local.private_ssh_key
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo iptables -F",
+      "sudo cloud-init status --wait",
+      "export TF_SVC_ENABLE=true",
+      "export AZURE_RESOURCE_GROUP='${local.resource_group_name_autoscaling}'",
+      "export AZURE_PREFIX_NAME='${var.name}'",
+      "export AZURE_CLIENT_ID='${var.azure_client_id}'",
+      "export AZURE_CLIENT_SECRET='${var.azure_client_secret}'",
+      "export AZURE_TENANT_ID='${var.azure_tenant_id}'",
+      "export AZURE_SUBSCRIPTION_ID='${var.azure_subscription_id}'",
+      "export AZURE_VIRTUAL_MACHINE_PASSWORD='${var.azure_virtual_machine_password}'",
+      "export TERRA_API_KEY='${var.terraform_service_api_key}'",
+      "export TERRA_PARALLELISM='${var.terraform_service_parallelism}'",
+      "export DB_HOST='${local.mysql_host}'",
+      "export DB_PORT='${var.mysql_port}'",
+      "export DB_USER='${local.mysql_username}'",
+      "export DB_PASSWORD='${nonsensitive(var.mysql_password)}'",
+      "cd /home/ubuntu/red5pro-installer/",
+      "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
+      "sudo -E /home/ubuntu/red5pro-installer/r5p_install_terraform_svc.sh",
+      "sleep 2"
+    ]
+    connection {
+      host        = self.public_ip_address
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = local.private_ssh_key
+    }
+  }
+}
 
 ################################################################################
 # Red5 Pro MySQL Database
 ################################################################################
-resource "azurerm_mysql_server" "red5_database" {
+resource "azurerm_mysql_flexible_server" "red5_database" {
   count               = local.mysql_db_system_create ? 1 : 0
   name                = "${var.name}-${var.azure_region}-red5-mysql-server"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
 
   administrator_login          = var.mysql_username
-  administrator_login_password = var.mysql_password
+  administrator_password       = var.mysql_password
 
-  sku_name   = var.mysql_database_sku
-  storage_mb = var.mysql_storage_mb
-  version    = "8.0"
-
-  auto_grow_enabled                 = true
+  sku_name            = var.mysql_database_sku
+  storage {
+    size_gb           = var.mysql_storage_mb
+    auto_grow_enabled = true
+  }
+  version                           = "8.0.21"
   backup_retention_days             = 7
   geo_redundant_backup_enabled      = false
-  infrastructure_encryption_enabled = false
-  public_network_access_enabled     = true
-  ssl_enforcement_enabled           = false
-  ssl_minimal_tls_version_enforced  = "TLS1_2"
+  delegated_subnet_id               = azurerm_subnet.vpc_subnet[0].id
+  lifecycle {
+    ignore_changes = [ high_availability[0].standby_availability_zone, zone ]
+  }
+  depends_on = [ azurerm_subnet.vpc_subnet_default ]
 }
 
-resource "azurerm_mysql_firewall_rule" "red5_database_firewall_rule" {
-  count               = local.mysql_db_system_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-red5-mysql-firewall"
-  resource_group_name = local.az_resource_group
-  server_name         = azurerm_mysql_server.red5_database[0].name
-  start_ip_address    = azurerm_public_ip.sm_public_ip[0].ip_address
-  end_ip_address      = azurerm_public_ip.sm_public_ip[0].ip_address
-}
-
-resource "azurerm_mysql_virtual_network_rule" "mysql_network_rule" {
-  count               = local.mysql_db_system_create ? 1 : 0
-  name                = "${var.name}-${var.azure_region}-mysql-virtual-network-rule"
-  resource_group_name = local.az_resource_group
-  server_name         = azurerm_mysql_server.red5_database[0].name
-  subnet_id           = azurerm_subnet.vpc_subnet[0].id
-}
 ################################################################################
 # Red5 Pro Load Balancer  (Azure Autoscale)
 ################################################################################
@@ -521,12 +674,12 @@ resource "azurerm_application_gateway" "red5_gateway" {
   sku {
     name     = var.application_gateway_sku_name
     tier     = var.application_gateway_sku_tier
-    capacity = 2
+    capacity = var.application_gateway_sku_capacity
   }
 
   gateway_ip_configuration {
     name      = "${var.name}-lb-gateway-ip-config"
-    subnet_id = azurerm_subnet.vpc_subnet[0].id
+    subnet_id = azurerm_subnet.application_gateway_subnet_default[0].id
   }
 
   frontend_port {
@@ -568,7 +721,7 @@ resource "azurerm_application_gateway" "red5_gateway" {
     frontend_port_name             = "${var.name}-lb-http-frontend-port"
     protocol                       = "Http"
   }
-    http_listener {
+  http_listener {
     name                           = "${var.name}-lb-https-listener"
     frontend_ip_configuration_name = "${var.name}-lb-frontend-ip-config"
     frontend_port_name             = "${var.name}-lb-https-frontend-port"
@@ -610,7 +763,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
   }
 
   os_disk {
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.stream_manager_machine_storage_type
     caching              = "ReadWrite"
   }
 
@@ -621,7 +774,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
     ip_configuration {
       name      = "${var.name}-vm-scale-set-nic-ipconfig"
       primary   = true
-      subnet_id = azurerm_subnet.vpc_subnet[0].id
+      subnet_id = azurerm_subnet.vpc_subnet_default[0].id
       application_gateway_backend_address_pool_ids = azurerm_application_gateway.red5_gateway[0].backend_address_pool[*].id
 
     }
@@ -651,7 +804,7 @@ resource "azurerm_linux_virtual_machine" "red5_origin" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.origin_machine_storage_type
   }
 
   source_image_reference {
@@ -722,7 +875,7 @@ resource "azurerm_linux_virtual_machine" "red5_origin" {
 
 }
 
-# Dealocating Origin Image
+# Dealocating Origin VM
 resource "null_resource" "dealocate_origin_vm" {
   count      = var.origin_image_create ? 1 : 0
   provisioner "local-exec" {
@@ -731,7 +884,7 @@ resource "null_resource" "dealocate_origin_vm" {
   depends_on = [azurerm_linux_virtual_machine.red5_origin]
 }
 
-# Dealocating Origin Image
+# Generalize Origin VM
 resource "null_resource" "generalize_origin_vm" {
   count      = var.origin_image_create ? 1 : 0
   provisioner "local-exec" {
@@ -760,7 +913,7 @@ resource "azurerm_linux_virtual_machine" "red5_edge" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.edge_machine_storage_type
   }
 
   source_image_reference {
@@ -807,11 +960,6 @@ resource "azurerm_linux_virtual_machine" "red5_edge" {
       "export NODE_ROUND_TRIP_AUTH_PROTOCOL='${var.edge_image_red5pro_round_trip_auth_protocol}'",
       "export NODE_ROUND_TRIP_AUTH_ENDPOINT_VALIDATE='${var.edge_image_red5pro_round_trip_auth_endpoint_validate}'",
       "export NODE_ROUND_TRIP_AUTH_ENDPOINT_INVALIDATE='${var.edge_image_red5pro_round_trip_auth_endpoint_invalidate}'",
-      "export NODE_CLOUDSTORAGE_ENABLE='${var.edge_red5pro_cloudstorage_enable}'",
-      "export NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_NAME='${var.edge_red5pro_azure_storage_account_name}'",
-      "export NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_KEY='${var.edge_red5pro_azure_storage_account_key}'",
-      "export NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME='${var.edge_red5pro_azure_storage_container_name}'",
-      "export NODE_CLOUDSTORAGE_POSTPROCESSOR_ENABLE='${var.edge_red5pro_cloudstorage_postprocessor_enable}'",
       "cd /home/ubuntu/red5pro-installer/",
       "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_server_basic.sh",
@@ -829,6 +977,24 @@ resource "azurerm_linux_virtual_machine" "red5_edge" {
     }
   }
 
+}
+
+# Dealocating Edge VM
+resource "null_resource" "dealocate_edge_vm" {
+  count      = var.edge_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm deallocate -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_edge[0].name}"
+  }
+  depends_on = [azurerm_linux_virtual_machine.red5_edge]
+}
+
+# Generalize Edge VM
+resource "null_resource" "generalize_edge_vm" {
+  count      = var.edge_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm generalize -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_edge[0].name}"
+  }
+    depends_on = [null_resource.dealocate_edge_vm]
 }
 
 # Red5 Pro transcoder node 
@@ -851,7 +1017,7 @@ resource "azurerm_linux_virtual_machine" "red5_transcoder" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.transcoder_machine_storage_type
   }
 
   source_image_reference {
@@ -922,6 +1088,24 @@ resource "azurerm_linux_virtual_machine" "red5_transcoder" {
 
 }
 
+# Dealocating Transcoder VM
+resource "null_resource" "dealocate_transcoder_vm" {
+  count      = var.transcoder_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm deallocate -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_transcoder[0].name}"
+  }
+  depends_on = [azurerm_linux_virtual_machine.red5_transcoder]
+}
+
+# Generalize Transcoder VM
+resource "null_resource" "generalize_transcoder_vm" {
+  count      = var.transcoder_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm generalize -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_transcoder[0].name}"
+  }
+    depends_on = [null_resource.dealocate_transcoder_vm]
+}
+
 # Red5 Pro relay node 
 resource "azurerm_linux_virtual_machine" "red5_relay" {
   count               = var.relay_image_create ? 1 : 0
@@ -942,7 +1126,7 @@ resource "azurerm_linux_virtual_machine" "red5_relay" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    storage_account_type = var.relay_machine_storage_type
   }
 
   source_image_reference {
@@ -989,11 +1173,6 @@ resource "azurerm_linux_virtual_machine" "red5_relay" {
       "export NODE_ROUND_TRIP_AUTH_PROTOCOL='${var.relay_image_red5pro_round_trip_auth_protocol}'",
       "export NODE_ROUND_TRIP_AUTH_ENDPOINT_VALIDATE='${var.relay_image_red5pro_round_trip_auth_endpoint_validate}'",
       "export NODE_ROUND_TRIP_AUTH_ENDPOINT_INVALIDATE='${var.relay_image_red5pro_round_trip_auth_endpoint_invalidate}'",
-      "export NODE_CLOUDSTORAGE_ENABLE='${var.relay_red5pro_cloudstorage_enable}'",
-      "export NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_NAME='${var.relay_red5pro_azure_storage_account_name}'",
-      "export NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_KEY='${var.relay_red5pro_azure_storage_account_key}'",
-      "export NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME='${var.relay_red5pro_azure_storage_container_name}'",
-      "export NODE_CLOUDSTORAGE_POSTPROCESSOR_ENABLE='${var.relay_red5pro_cloudstorage_postprocessor_enable}'",
       "cd /home/ubuntu/red5pro-installer/",
       "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_server_basic.sh",
@@ -1010,7 +1189,24 @@ resource "azurerm_linux_virtual_machine" "red5_relay" {
       private_key = local.private_ssh_key
     }
   }
+}
 
+# Dealocating Relay VM
+resource "null_resource" "dealocate_relay_vm" {
+  count      = var.relay_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm deallocate -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_relay[0].name}"
+  }
+  depends_on = [azurerm_linux_virtual_machine.red5_relay]
+}
+
+# Generalize Relay VM
+resource "null_resource" "generalize_relay_vm" {
+  count      = var.relay_image_create ? 1 : 0
+  provisioner "local-exec" {
+    command  = "az vm generalize -g ${local.az_resource_group} -n ${azurerm_linux_virtual_machine.red5_relay[0].name}"
+  }
+    depends_on = [null_resource.dealocate_relay_vm]
 }
 
 ####################################################################################################
@@ -1019,7 +1215,7 @@ resource "azurerm_linux_virtual_machine" "red5_relay" {
 # Stream Manager Image
 resource "azurerm_image" "stream_manager_image" {
   count               = local.autoscaling ? 1 : 0
-  name                = "${var.name}-stream-manager-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
+  name                = "${var.name}-stream-manager-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_stream_manager[0].id
@@ -1034,7 +1230,7 @@ resource "azurerm_image" "stream_manager_image" {
 # Origin Node - Origin Image
 resource "azurerm_image" "origin_image" {
   count               = var.origin_image_create ? 1 : 0
-  name                = "${var.name}-origin-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-origin-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_origin[0].id
@@ -1049,35 +1245,47 @@ resource "azurerm_image" "origin_image" {
 # Edge Node - Edge Image
 resource "azurerm_image" "edge_image" {
   count               = var.edge_image_create ? 1 : 0
-  name                = "${var.name}-edge-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-edge-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_edge[0].id
   lifecycle {
     ignore_changes    = [ name ]
   }
+
+  depends_on = [ null_resource.dealocate_edge_vm,
+                 null_resource.generalize_edge_vm 
+               ]
 }
 # Relay Node - Relay Image
 resource "azurerm_image" "relay_image" {
   count               = var.relay_image_create ? 1 : 0
-  name                = "${var.name}-relay-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-relay-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_relay[0].id
   lifecycle {
     ignore_changes    = [ name ]
   }
+
+  depends_on = [ null_resource.dealocate_relay_vm,
+                null_resource.generalize_relay_vm 
+               ]
 }
 # Transcoder Node - Transcoder Image
 resource "azurerm_image" "transcoder_image" {
   count               = var.transcoder_image_create ? 1 : 0
-  name                = "${var.name}-transcoder-image-${formatdate("DDMMMYY-hhmm", timestamp())}"
+  name                = "${var.name}-transcoder-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}-img"
   location            = var.azure_region
   resource_group_name = local.az_resource_group
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_transcoder[0].id
   lifecycle {
     ignore_changes    = [ name ]
   }
+
+  depends_on = [ null_resource.dealocate_transcoder_vm,
+                null_resource.generalize_transcoder_vm 
+               ]
 }
 
 ################################################################################
@@ -1087,7 +1295,7 @@ resource "azurerm_image" "transcoder_image" {
 resource "null_resource" "stop_origin_node" {
   count      = var.origin_image_create ? 1 : 0
   provisioner "local-exec" {
-    command  = "az vm delete --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_origin[0].name} --force-deletion none --yes"
+    command  = "az vm stop --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_origin[0].name} --subscription ${var.azure_subscription_id} --skip-shutdown"
   }
   depends_on = [ azurerm_image.origin_image ]
 }
@@ -1095,7 +1303,7 @@ resource "null_resource" "stop_origin_node" {
 resource "null_resource" "stop_edge_node" {
   count      = var.edge_image_create ? 1 : 0
   provisioner "local-exec" {
-    command  = "az vm delete --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_edge[0].name} --force-deletion none --yes"
+    command  = "az vm stop --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_edge[0].name} --subscription ${var.azure_subscription_id} --skip-shutdown"
   }
   depends_on = [ azurerm_image.edge_image ]
 }
@@ -1103,7 +1311,7 @@ resource "null_resource" "stop_edge_node" {
 resource "null_resource" "stop_relay_node" {
   count      = var.transcoder_image_create ? 1 : 0
   provisioner "local-exec" {
-    command  = "az vm delete --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_relay[0].name} --force-deletion none --yes"
+    command  = "az vm stop --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_relay[0].name} --subscription ${var.azure_subscription_id} --skip-shutdown"
   }
   depends_on = [ azurerm_image.relay_image ]
 }
@@ -1111,14 +1319,36 @@ resource "null_resource" "stop_relay_node" {
 resource "null_resource" "stop_transcoder_node" {
   count      = var.relay_image_create ? 1 : 0
   provisioner "local-exec" {
-    command  = "az vm delete --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_transcoder[0].name} --force-deletion none --yes"
+    command  = "az vm stop --resource-group ${local.az_resource_group} --name ${azurerm_linux_virtual_machine.red5_transcoder[0].name} --subscription ${var.azure_subscription_id} --skip-shutdown"
   }
   depends_on = [ azurerm_image.transcoder_image ]
 }
 
 ################################################################################
-# Create node group (Stream Manager API)
+# Create/Delete node group (Stream Manager API)
 ################################################################################
+resource "time_sleep" "wait_for_delete_nodegroup" {
+  count      = var.node_group_create ? 1 : 0
+  depends_on = [
+    azurerm_linux_virtual_machine.red5_stream_manager[0],
+    azurerm_mysql_flexible_server.red5_database[0],
+    azurerm_network_interface_security_group_association.sm_network_interface_security_association[0],
+    azurerm_network_security_group.red5_stream_manager_network_security_group[0],
+    azurerm_mysql_flexible_server.red5_database[0],
+    azurerm_application_gateway.red5_gateway[0],
+    azurerm_linux_virtual_machine_scale_set.autoscale_sm[0],
+    azurerm_network_interface.node_network_interface[0],
+    azurerm_network_interface.sm_network_interface[0],
+    azurerm_network_security_group.red5_node_network_security_group[0],
+    azurerm_network_interface_security_group_association.node_network_interface_security_association[0],
+    azurerm_linux_virtual_machine.red5_terraform_service[0],
+    azurerm_network_interface.terraform_service_network_interface[0],
+    azurerm_network_security_group.terraform_service_network_security_group[0],
+    azurerm_network_interface_security_group_association.terraform_service_network_interface_security_association[0],
+  ]
+  
+  destroy_duration = "2m"
+}
 
 resource "null_resource" "node_group" {
   count    = var.node_group_create ? 1 : 0
@@ -1127,10 +1357,12 @@ resource "null_resource" "node_group" {
     SM_IP  = "${local.stream_manager_ip}"
     SM_API_KEY = "${var.stream_manager_api_key}"
   }
+
   provisioner "local-exec" {
     when    = destroy
     command = "bash ${abspath(path.module)}/red5pro-installer/r5p_delete_node_group.sh '${self.triggers.SM_IP}' '${self.triggers.SM_API_KEY}'"
   }
+
   provisioner "local-exec" {
     when    = create
     command = "bash ${abspath(path.module)}/red5pro-installer/r5p_create_node_group.sh"
@@ -1140,10 +1372,14 @@ resource "null_resource" "node_group" {
       SM_API_KEY                 = "${var.stream_manager_api_key}"
       NODE_GROUP_REGION          ="${var.azure_region}"
       NODE_GROUP_NAME            = "${var.node_group_name}"
-      ORIGINS                    = "${var.node_group_origins}"
-      EDGES                      = "${var.node_group_edges}"
-      TRANSCODERS                = "${var.node_group_transcoders}"
-      RELAYS                     = "${var.node_group_relays}"
+      ORIGINS_MIN                = "${var.node_group_origins_min}"
+      EDGES_MIN                  = "${var.node_group_edges_min}"
+      TRANSCODERS_MIN            = "${var.node_group_transcoders_min}"
+      RELAYS_MIN                 = "${var.node_group_relays_min}"
+      ORIGINS_MAX                = "${var.node_group_origins_max}"
+      EDGES_MAX                  = "${var.node_group_edges_max}"
+      TRANSCODERS_MAX            = "${var.node_group_transcoders_max}"
+      RELAYS_MAX                 = "${var.node_group_relays_max}"
       ORIGIN_MACHINE_SIZE        = "${var.node_group_origins_machine_size}"
       EDGE_MACHINE_SIZE          = "${var.node_group_edges_machine_size}"
       TRANSCODER_MACHINE_SIZE    = "${var.node_group_transcoders_machine_size}"
@@ -1159,5 +1395,5 @@ resource "null_resource" "node_group" {
     }
   }
 
-  depends_on =  [ azurerm_linux_virtual_machine.red5_stream_manager ]
+  depends_on =  [ time_sleep.wait_for_delete_nodegroup[0] ]
 }

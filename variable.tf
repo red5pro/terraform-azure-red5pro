@@ -18,24 +18,25 @@ variable "type" {
   }
 }
 variable "ubuntu_image_offer" {
-  description = "Ubuntu version to be used for the machines."
-  type = map(string)
+  description     = "Ubuntu version to be used for the machines."
+  type            = map(string)
   default = {
-    "20.04" = "0001-com-ubuntu-server-focal"
-    "22.04" = "0001-com-ubuntu-server-jammy"
+    "20.04"       = "0001-com-ubuntu-server-focal"
+    "22.04"       = "0001-com-ubuntu-server-jammy"
   }
 }
 
 variable "ubuntu_image_sku" {
-  description = "Ubuntu version to be used for the machines."
-  type = map(string)
+  description     = "Ubuntu version to be used for the machines."
+  type            = map(string)
   default = {
-    "20.04" = "20_04-lts"
-    "22.04" = "22_04-lts"
+    "20.04"       = "20_04-lts"
+    "22.04"       = "22_04-lts"
   }
 }
+
 variable "ubuntu_version" {
-  description     = "Ubuntu version which is going to be used for creating droplet in Digital Ocean"
+  description     = "Ubuntu version which is going to be used for creating machine in Azure"
   type            = string
   default         = "20.04"
   validation {
@@ -52,6 +53,49 @@ variable "path_to_red5pro_build" {
     condition     = fileexists(var.path_to_red5pro_build) == true
     error_message = "The path_to_red5pro_build value must be a valid! Example: /home/ubuntu/red5pro-server-0.0.0.b0-release.zip"
   }
+}
+
+# Terraform service configuration
+variable "terraform_service_instance_create" {
+  description     = "Create a dedicated machine for Red5 pro Terraform Service "
+  type            = bool
+  default         = true
+}
+variable "terraform_service_tcp_nsg_ports" {
+  description     = "Red5 Pro ports enable for Terraform service"
+  type            = list(number)
+  default         = [22, 8083]
+}
+variable "terraform_service_machine_size" {
+  description     = "Terraform service virtual machine size"
+  type            = string
+  default         = "Standard_F2s_v2"
+}
+variable "terraform_service_machine_storage_type" {
+  description     = "Terraform service virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  type            = string
+  default         = "Premium_LRS"
+}
+variable "terraform_service_api_key" {
+  description     = "API key for Teraform Service to autherize the APIs"
+  type            = string
+  default         = ""
+}
+variable "terraform_service_parallelism" {
+  description     = "Number of Terraform concurrent operations and used for non-standard rate limiting"
+  type            = string
+  default         = "20"
+}
+variable "path_to_terraform_cloud_controller" {
+  description     = "Path to the Terraform Cloud Controller jar file, absolute path or relative path. https://account.red5pro.com/downloads. Example: /home/ubuntu/terraform-azure-red5pro/terraform-cloud-controller-0.0.0.jar"
+  type            = string
+  default         = ""
+}
+
+variable "path_to_terraform_service_build" {
+  description     = "Path to the Terraform Service build zip file, absolute path or relative path. https://account.red5pro.com/downloads. Example: /home/ubuntu/terraform-azure-red5pro/terraform-service-0.0.0.zip"
+  type            = string
+  default         = ""
 }
 
 # Microsoft Azure account configuration
@@ -98,7 +142,7 @@ variable "azure_region" {
 
 # VPC configuration
 variable "vpc_cidr_block" {
-  description     = "Digital Ocean VPC IP range for Red5 Pro"
+  description     = "VPC IP range for Red5 Pro"
   type            = string
   default         = "10.0.0.0/16"
 }
@@ -130,6 +174,11 @@ variable "application_gateway_sku_tier" {
   type        = string
   default     = "Standard_v2"
 }
+variable "application_gateway_sku_capacity" {
+  description = "The number of instances to use for this Application Gateway. This value is only allowed to be set when the SKU name is Standard_v2 or WAF_v2."
+  type        = number
+  default     = 2
+}
 
 # Database Configuration
 variable "mysql_database_create" {
@@ -145,7 +194,7 @@ variable "mysql_username" {
 variable "mysql_database_sku" {
   description     = "MySQL database size"
   type            = string
-  default         = "B_Gen5_2"
+  default         = "GP_Standard_D2ds_v4"
 }
 variable "mysql_storage_mb" {
   description     = "MySQL storage"
@@ -158,9 +207,9 @@ variable "mysql_port" {
   default         = 3306
 }
 variable "mysql_password" {
-  description     = "MySQL password if mysql_database_create = false"
+  description     = "MySQL database password"
   type            = string
-  default         = "Abc@12345"
+  default         = "Abc@123abc45!#&"
   sensitive       = true
   validation {
     condition     = length(var.mysql_password) >= 8
@@ -196,6 +245,11 @@ variable "virtual_machine_size" {
   type            = string
   default         = ""
 }
+variable "virtual_machine_storage_type" {
+  description     = "Red5 Pro single virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  type            = string
+  default         = "Premium_LRS"
+}
 variable "ssh_key_name" {
   description     = "SSH keys name to cretae ssh-key pair"
   type            = string
@@ -211,7 +265,6 @@ variable "existing_private_ssh_key_path" {
   type            = string
   default         = ""
 }
-
 variable "red5pro_cluster_key" {
   description = "Red5Pro Cluster Key"
   type        = string
@@ -299,10 +352,9 @@ variable "stream_manager_machine_size" {
   description = "Stream Manager virtual machine size"
   type        = string
   default     = ""
-  
 }
-variable "path_to_azure_cloud_controller" {
-  description = "Absolute path of azure cloud controller jar file. eg: /home/ubuntu/azure-cloud-controller.jar"
+variable "stream_manager_machine_storage_type" {
+  description = "Stream Manager storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
   type        = string
   default     = ""
 }
@@ -340,23 +392,23 @@ variable "single_red5_nsg_ports" {
   type = list(number)
   default = [22, 80, 5080, 443]
 }
-variable "stream_manager_red5_nsg_ports" {
-  description = "Red5 Pro ports enable for stream manager server deloyment"
+
+variable "stream_manager_red5_nsg_tcp_ports" {
+  description = "Red5 Pro TCP ports enable for stream manager server deloyment"
   type = list(number)
   default = [22, 80, 5080, 443]
 }
-
 
 ########################################################
 # Red5 Pro autoscaling Origin node image configuration
 ########################################################
 # Origin node configuration
-variable "origin_red5_tcp_nsg_ports" {
+variable "node_red5_tcp_nsg_ports" {
   description = "Red5 Pro ports enable for origin node"
   type = list(number)
-  default = [22, 5080, 1935, 8554]
+  default = [22, 5080, 1935, 8554, 6262, 8081]
 }
-variable "origin_red5_udp_nsg_ports" {
+variable "node_red5_udp_nsg_ports" {
   description = "Red5 Pro ports enable for origin node"
   type = string
   default = "40000-65535"
@@ -369,7 +421,12 @@ variable "origin_image_create" {
 variable "origin_machine_size" {
   description = "Origin node virtual machine size"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
+}
+variable "origin_machine_storage_type" {
+  description = "Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  default     = ""
+  type        = string
 }
 variable "origin_image_red5pro_inspector_enable" {
   description = "Origin node image - Inspector enable/disable (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)"
@@ -436,7 +493,12 @@ variable "edge_image_create" {
 variable "edge_machine_size" {
   description = "Edge node virtual machine size"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
+}
+variable "edge_machine_storage_type" {
+  description = "Edge machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  default     = ""
+  type        = string
 }
 variable "edge_image_red5pro_inspector_enable" {
   description = "Edge node image - Inspector enable/disable (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)"
@@ -503,7 +565,12 @@ variable "transcoder_image_create" {
 variable "transcoder_machine_size" {
   description = "Transcoder node virtual machine size"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
+}
+variable "transcoder_machine_storage_type" {
+  description = "Transcoder machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  default     = ""
+  type        = string
 }
 variable "transcoder_image_red5pro_inspector_enable" {
   description = "Transcoder node image - Inspector enable/disable (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)"
@@ -570,7 +637,12 @@ variable "relay_image_create" {
 variable "relay_machine_size" {
   description = "Relay node virtual machine size"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
+}
+variable "relay_machine_storage_type" {
+  description = "Relay machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  default     = ""
+  type        = string
 }
 variable "relay_image_red5pro_inspector_enable" {
   description = "Relay node image - Inspector enable/disable (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)"
@@ -662,60 +734,80 @@ variable "node_group_name" {
   type        = string
   default     = ""
 }
-variable "node_group_origins" {
-  description = "Number of Origins"
+variable "node_group_origins_min" {
+  description = "Number of minimum Origins"
   type        = number
   default     = 1
+}
+variable "node_group_origins_max" {
+  description = "Number of maximum Origins"
+  type        = number
+  default     = 20
 }
 variable "node_group_origins_machine_size" {
   description = "Machine size for Origins"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
 }
 variable "node_group_origins_capacity" {
   description = "Connections capacity for Origins"
   type        = number
   default     = 30
 }
-variable "node_group_edges" {
-  description = "Number of Edges"
+variable "node_group_edges_min" {
+  description = "Number of minimum Edges"
   type        = number
   default     = 1
+}
+variable "node_group_edges_max" {
+  description = "Number of maximum Edges"
+  type        = number
+  default     = 40
 }
 variable "node_group_edges_machine_size" {
   description = "Machine size for Edges"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
 }
 variable "node_group_edges_capacity" {
   description = "Connections capacity for Edges"
   type        = number
   default     = 300
 }
-variable "node_group_transcoders" {
-  description = "Number of Transcoders"
+variable "node_group_transcoders_min" {
+  description = "Number of minimum Transcoders"
   type        = number
   default     = 1
+}
+variable "node_group_transcoders_max" {
+  description = "Number of maximum Transcoders"
+  type        = number
+  default     = 20
 }
 variable "node_group_transcoders_machine_size" {
   description = "Machine size for Transcoders"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
 }
 variable "node_group_transcoders_capacity" {
   description = "Connections capacity for Transcoders"
   type        = number
   default     = 30
 }
-variable "node_group_relays" {
-  description = "Number of Relays"
+variable "node_group_relays_min" {
+  description = "Number of minimum Relays"
   type        = number
   default     = 1
+}
+variable "node_group_relays_max" {
+  description = "Number of maximum Relays"
+  type        = number
+  default     = 20
 }
 variable "node_group_relays_machine_size" {
   description = "Machine size for Relays"
   type        = string
-  default     = "Standard_F2"
+  default     = "Standard_F2s_v2"
 }
 variable "node_group_relays_capacity" {
   description = "Connections capacity for Relays"
@@ -776,32 +868,6 @@ variable "origin_red5pro_cloudstorage_postprocessor_enable" {
   default     = false
 }
 
-variable "edge_red5pro_cloudstorage_enable" {
-  description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
-  type        = bool
-  default     = false
-}
-variable "edge_red5pro_azure_storage_account_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account name "
-  type        = string
-  default     = ""
-}
-variable "edge_red5pro_azure_storage_account_key" {
-  description = "Red5 Pro server cloud storage - Azure storage account key"
-  type        = string
-  default     = ""
-}
-variable "edge_red5pro_azure_storage_container_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account container name"
-  type        = string
-  default     = ""
-}
-variable "edge_red5pro_cloudstorage_postprocessor_enable" {
-  description = "Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/)"
-  type        = bool
-  default     = false
-}
-
 variable "transcoder_red5pro_cloudstorage_enable" {
   description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
   type        = bool
@@ -827,30 +893,3 @@ variable "transcoder_red5pro_cloudstorage_postprocessor_enable" {
   type        = bool
   default     = false
 }
-
-variable "relay_red5pro_cloudstorage_enable" {
-  description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
-  type        = bool
-  default     = false
-}
-variable "relay_red5pro_azure_storage_account_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account name "
-  type        = string
-  default     = ""
-}
-variable "relay_red5pro_azure_storage_account_key" {
-  description = "Red5 Pro server cloud storage - Azure storage account key"
-  type        = string
-  default     = ""
-}
-variable "relay_red5pro_azure_storage_container_name" {
-  description = "Red5 Pro server cloud storage - Azure storage account container name"
-  type        = string
-  default     = ""
-}
-variable "relay_red5pro_cloudstorage_postprocessor_enable" {
-  description = "Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/)"
-  type        = bool
-  default     = false
-}
-

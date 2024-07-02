@@ -1,22 +1,26 @@
 #################################################
 # Example for single Red5 Pro server deployment #
 #################################################
+provider "azurerm" {
+  features {}
+  client_id           = ""                                                             # Client id of the Azue account
+  client_secret       = ""                                                             # Client Secret id of the Azue account
+  subscription_id     = ""                                                             # Subscription id of the Azue account
+  tenant_id           = ""                                                             # Tenant id of the Azue account
+  skip_provider_registration = true
+}
 
 module "red5pro_single" {
   source                    = "../../"
-  azure_client_id           = ""                                                             # Client id of the Azue account
-  azure_client_secret       = ""                                                             # Client Secret id of the Azue account
-  azure_subscription_id     = ""                                                             # Subscription id of the Azue account
-  azure_tenant_id           = ""                                                             # Tenant id of the Azue account
-  azure_region              = "centralindia"                                                 # Azure region where resources will create eg: centralindia
+  azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
 
   create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, Provide the existing resouce group name
-  new_azure_resource_group_name      = "TestGroup"                                           # If create_azure_resource_group = true, new resource group name to be used
+  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
+  new_azure_resource_group_name      = "example-group-name"                                  # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
 
-  ubuntu_version            = "20.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
+  ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
   type                      = "single"                                                       # Deployment type: single, cluster, autoscaling
-  name                      = ""                                                             # Name to be used on all the resources as identifier
+  name                      = "red5pro-single"                                               # Name to be used on all the resources as identifier
   path_to_red5pro_build     = "./red5pro-server-0.0.0-release.zip"                           # Absolute path or relative path to Red5 Pro server ZIP file
 
   # SSH key configuration
@@ -35,7 +39,8 @@ module "red5pro_single" {
   https_letsencrypt_certificate_password     = "examplepass"                                 # Password for Let's Encrypt SSL certificate
   
   # Single Red5 Pro server Instance configuration
-  virtual_machine_size                          = "Standard_F2"                              # Instance size for Red5 Pro server
+  virtual_machine_size                          = "Standard_F2s_v2"                          # Instance size for Red5 Pro server
+  virtual_machine_storage_type                  = "Premium_LRS"                              # Storage type for Red5 Pro server (Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS)
 
   # Red5Pro server configuration
   red5pro_license_key                           = "1111-2222-3333-4444"                      # Red5 Pro license key (https://account.red5pro.com/login)
@@ -57,7 +62,6 @@ module "red5pro_single" {
   red5pro_azure_storage_account_key             = ""                                         # Red5 Pro server cloud storage - Azure storage account key
   red5pro_azure_storage_container_name          = ""                                         # Red5 Pro server cloud storage - Azure storage container name
   red5pro_cloudstorage_postprocessor_enable     = false                                      # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
-
 }
 
 output "module_output" {
