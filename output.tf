@@ -1,99 +1,76 @@
 
-################################################################################
-# OUTPUTS
-################################################################################
-output "node_origin_image" {
-  description = "Image name of the Red5 Pro Node Origin image"
-  value       = try(azurerm_image.origin_image[0].name, null)
+# ################################################################################
+# # OUTPUTS
+# ################################################################################
+output "vpc_name" {
+  description = "VPC Name"
+  value       = local.vpc_name
 }
-
-output "node_edge_image" {
-  description = "Image name of the Red5 Pro Node Edge image"
-  value       = try(azurerm_image.edge_image[0].name, null)
+output "node_image_name" {
+  description = "Node image name"
+  value       = local.node_image_name
 }
-
-output "node_transcoder_image" {
-  description = "Image name of the Red5 Pro Node Transcoder image"
-  value       = try(azurerm_image.transcoder_image[0].name, null)
+output "security_group_name_node" {
+  description = "Node security group name"
+  value       = local.security_group_name_node
 }
-
-output "node_relay_image" {
-  description = "Image name of the Red5 Pro Node Relay image"
-  value       = try(azurerm_image.relay_image[0].name, null)
+output "security_group_name_kafka" {
+  description = "Kafka security group name"
+  value       = local.security_group_name_kafka
 }
-
+output "security_group_name_sm" {
+  description = "Stream Manager security group name"
+  value       = local.security_group_name_sm
+}
+output "stream_manager_ip" {
+  description = "Stream Manager 2.0 Public IP or Load Balancer Public IP"
+  value       = local.cluster_or_autoscale ? local.stream_manager_ip : null
+}
+output "stream_manager_url_http" {
+  description = "Stream Manager HTTP URL"
+  value       = local.cluster_or_autoscale ? "http://${local.stream_manager_ip}:80" : null
+}
+output "stream_manager_url_https" {
+  description = "Stream Manager HTTPS URL"
+  value       = local.cluster_or_autoscale && var.https_ssl_certificate != "none" ? "https://${var.https_ssl_certificate_domain_name}:443" : null
+}
+output "ssh_key_name" {
+  description = "SSH key name"
+  value       = try(azurerm_ssh_public_key.red5pro_ssh[0].name, null)
+}
 output "ssh_private_key_path" {
   description = "SSH private key path"
   value       = local.ssh_private_key_path
 }
-
-output "database_host" {
-  description = "MySQL database host"
-  value       = local.mysql_host
+output "ssh_username" {
+  description = "SSH username to connect with virtual machine"
+  value       = "ubuntu" 
 }
-
-output "database_user" {
-  description = "Database User"
-  value       = var.mysql_username
+output "azure_region" {
+  description = "Azure region where resources has been created"
+  value       = var.azure_region
 }
-
-output "database_port" {
-  description = "Database Port"
-  value       = var.mysql_port
-}
-
-output "database_password" {
-  sensitive   = true
-  description = "Database Password"
-  value       = var.mysql_password
-}
-
-output "stream_manager_ip" {
-  description = "Stream Manager IP"
-  value = local.stream_manager_ip
-}
-
-output "stream_manager_http_url" {
-  description = "Stream Manager HTTP URL"
-  value       = local.cluster ? "http://${local.stream_manager_ip}:5080" : null
-}
-
-output "stream_manager_https_url" {
-  description = "Stream Manager HTTPS URL"
-  value       = local.cluster && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
-}
-
-output "single_red5pro_single_server_ip" {
-  description = "Signle server red5pro ip"
-  value       = local.single_server_ip
-}
-
-output "single_red5pro_server_http_url" {
-  description = "Single Red5 Pro Server HTTP URL"
-  value       = local.single ? "http://${local.single_server_ip}:5080" : null
-}
-
-output "single_red5pro_server_https_url" {
-  description = "Single Red5 Pro Server HTTPS URL"
-  value       = local.single && var.https_letsencrypt_enable ? "https://${var.https_letsencrypt_certificate_domain_name}:443" : null
-}
-
-output "single_red5pro_server_ip" {
-  description = "Single Red5 Pro Server IP"
-  value       = local.single_server_ip
-}
-
-output "load_balancer_url" {
-  description = "Load Balancer URL of Red5 Pro server"
-  value       = local.autoscaling ? "https://${azurerm_public_ip.lb_ip[0].ip_address}:443" : null
-}
-
 output "resource_group_name" {
   description = "Azure Resource Group name"
-  value       = local.az_resource_group
+  value       = local.az_resource_group_name
 }
-
-output "terraform_service_ip" {
-  description = "Terraform service IP address"
-  value       = local.terraform_service_ip
+output "manual_dns_record" {
+  description = "Manual DNS Record"
+  value       = var.https_ssl_certificate != "none" ? "Please create DNS A record for Stream Manager 2.0: '${var.https_ssl_certificate_domain_name} - ${local.cluster_or_autoscale ? local.stream_manager_ip : local.standalone_server_ip}'" : null
+}
+output "standalone_red5pro_server_ip" {
+  description = "Standalone Red5 Pro Server IP"
+  value       = local.standalone ? local.standalone_server_ip : null
+}
+output "standalone_red5pro_server_http_url" {
+  description = "Standalone Red5 Pro Server HTTP URL"
+  value       = local.standalone ? "http://${local.standalone_server_ip}:5080" : null
+}
+output "standalone_red5pro_server_https_url" {
+  description = "Standalone Red5 Pro Server HTTPS URL"
+  value       = local.standalone && var.https_ssl_certificate != "none" ? "https://${var.https_ssl_certificate_domain_name}:443" : null
+}
+output "standalone_red5pro_server_security_group_name" {
+  description = "Security group name Standalone Red5 Pro server"
+  value       = try(azurerm_network_security_group.red5_network_standalone_security_group[0].name, null)
 }

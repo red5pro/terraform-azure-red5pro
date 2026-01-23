@@ -1,422 +1,554 @@
-# Microsoft Azure Red5 Pro Terraform module
+# Terraform Module for Deploying Red5 Pro on Microsoft Azure (Azure) - Stream Manager 2.0
 [Red5 Pro](https://www.red5.net/) is a real-time video streaming server plaform known for its low-latency streaming capabilities, making it ideal for interactive applications like online gaming, streaming events and video conferencing etc.
 
-This a reusable Terraform installer module for [Red5 Pro](https://www.red5.net/docs/installation/installation/azurequickstart/) that provisions infrastucture over [Microsoft Azure(Azure)](https://portal.azure.com/).
-
-## This module has 3 variants of Red5 Pro deployments
-
-* **single** - Single instance with installed and configured Red5 Pro server
-* **cluster** - Stream Manager cluster (MySQL DB + Stream Manager instance + Terraform Service + Autoscaling Node group with Origin, Edge, Transcoder, Relay droplets)
-* **autoscaling** - Autoscaling Stream Managers (MySQL DB + Load Balancer + Autoscaling Stream Managers + Terraform Service + Autoscaling Node group with Origin, Edge, Transcoder, Relay droplets)
-
----
+This is a reusable Terraform module that provisions infrastructure on [Microsoft Azure(Azure)](https://portal.azure.com/).
 
 ## Preparation
 
-* Install **terraform** https://developer.hashicorp.com/terraform/downloads
-  * Open your web browser and visit the [Terraform download page](https://developer.hashicorp.com/terraform/downloads), ensuring you get version 1.0.0 or higher. 
-  * Download the suitable version for your operating system, 
-  * Extract the compressed file, and then copy the Terraform binary to a location within your system's path
-    * Configure path on Linux/macOS 
-      * Open a terminal and type the following:
+### Install Terraform
 
-        ```$ sudo mv /path/to/terraform /usr/local/bin```
-    * Configure path on Windows OS
-      * Click 'Start', search for 'Control Panel', and open it.
-      * Navigate to System > Advanced System Settings > Environment Variables.
-      * Under System variables, find 'PATH' and click 'Edit'.
-      * Click 'New' and paste the directory location where you extracted the terraform.exe file.
-      * Confirm changes by clicking 'OK' and close all open windows.
-      * Open a new terminal and verify that Terraform has been successfully installed.
+- Visit the [Terraform download page](https://developer.hashicorp.com/terraform/downloads) and ensure you get version 1.7.5 or higher.
+- Download the suitable version for your operating system.
+- Extract the compressed file and copy the Terraform binary to a location within your system's PATH.
+- Configure PATH for **Linux/macOS**:
+  - Open a terminal and type the following command:
 
-* Install **Microsoft Azure CLI** https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
-* Install **jq** Linux or Mac OS only - `apt install jq` or `brew install jq` (It is using in bash scripts to create/delete Stream Manager node group using API)
-* Download Red5 Pro server build: (Example: red5pro-server-0.0.0.b0-release.zip) https://account.red5pro.com/downloads
-* Download Red5 Pro Terraform controller : (Example: terraform-cloud-controller-0.0.0.jar) https://account.red5pro.com/downloads
-* Download Red5 Pro Terraform Service : (Example: terraform-service-0.0.0.zip) https://account.red5pro.com/downloads
-* Get Red5 Pro License key: (Example: 1111-2222-3333-4444) https://account.red5pro.com
-* Login to microsoft azure cli (To login to CLI follow the below documents) 
-  * Follow the documentation for generating API keys - https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli
-* Copy Red5 Pro server build, Terraform controller and Terraform service to the root folder of your project
+    ```sh
+    sudo mv /path/to/terraform /usr/local/bin
+    ```
 
-Example:  
+- Configure PATH for **Windows**:
+  - Click 'Start', search for 'Control Panel', and open it.
+  - Navigate to `System > Advanced System Settings > Environment Variables`.
+  - Under System variables, find 'PATH' and click 'Edit'.
+  - Click 'New' and paste the directory location where you extracted the terraform.exe file.
+  - Confirm changes by clicking 'OK' and close all open windows.
+  - Open a new terminal and verify that Terraform has been successfully installed.
 
-```bash
-cp ~/Downloads/red5pro-server-0.0.0.b0-release.zip ./
-cp ~/Downloads/terraform-cloud-controller-0.0.0.jar ./
-cp ~/Downloads/terraform-service-0.0.0.zip ./
-```
+  ```sh
+  terraform --version
+  ```
 
-## Single Red5 Pro server deployment (single) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/single)
+### Install jq
 
-* **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
-* **Security Group** - This Terrform module create a new security group in Microsoft Azure.
-* **SSH KEYS** - This module can create and use already created SSH Keys
-* **Machine Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
-* **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
+- Install **jq** (Linux or Mac OS only) [Download](https://jqlang.github.io/jq/download/)
+  - Linux: `apt install jq`
+  - MacOS: `brew install jq`
+  > It is used in bash scripts to create/delete Stream Manager node group using API
 
-## Usage (single)
+### Install bc
+
+- Install **bc** (Linux or Mac OS only) [Download](https://www.gnu.org/software/bc/)
+  - Linux: `apt install bc`
+  - MacOS: `brew install bc`
+  > It is used in bash scripts to create/delete Stream Manager node group using API
+
+### Red5 Pro artifacts
+
+- Download Red5 Pro server build in your [Red5 Pro Account](https://account.red5.net/downloads). Example: `red5pro-server-0.0.0.b0-release.zip`
+- Get Red5 Pro License key in your [Red5 Pro Account](https://account.red5.net/downloads). Example: `1111-2222-3333-4444`
+
+
+### Prepare Azure account
+
+- Create a Service Principal for the Terraform module. The Service Principal must have permission to create and manage the following resources:
+  - Azure Active Directory (App Registration / Service Principal)
+  - Resource Groups
+  - Virtual Networks and Subnets
+  - Virtual Machines and Scale Sets
+  - Load Balancers
+  - Public IP Addresses
+  - Network Security Groups
+  - Managed Disks
+- Create a Service Principal with Contributor role assigned at the Subscription
+  - You can follow this terraform docs for setup process [Docs](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_secret#creating-a-service-principal)
+
+- Obtain the necessary credentials and information that will be used in terraform:
+  - Subscription ID
+  - Tenant ID
+  - Client ID
+  - Client Secret
+
+## This module supports three variants of Red5 Pro deployments
+
+- **standalone** - Standalone Red5 Pro server
+- **cluster** - Stream Manager 2.0 cluster with autoscaling nodes
+- **autoscale** - Autoscaling Stream Managers 2.0 with autoscaling nodes
+
+### Standalone Red5 Pro server (standalone) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/standalone)
+
+In the following example, Terraform module will automates the infrastructure provisioning of the [Red5 Pro standalone server](https://www.red5.net/docs/installation/).
+
+#### Terraform Deployed Resources (standalone)
+
+- Resource Group (You can use existing resource group)
+- Virtual Network
+- Public subnet
+- Security group for Standalone Red5 Pro server
+- SSH key pair (use existing or create a new one)
+- Standalone Red5 Pro server instance
+- SSL certificate for Standalone Red5 Pro server instance. Options:
+  - `none` - Red5 Pro server without HTTPS and SSL certificate. Only HTTP on port `5080`
+  - `letsencrypt` - Red5 Pro server with HTTPS and SSL certificate obtained by Let's Encrypt. HTTP on port `5080`, HTTPS on port `443`
+  - `imported` - Red5 Pro server with HTTPS and imported SSL certificate. HTTP on port `5080`, HTTPS on port `443`
+
+#### Example main.tf (standalone)
 
 ```hcl
-provider "azurerm" {
-  features {}
-  client_id           = ""                                                             # Client id of the Azue account
-  client_secret       = ""                                                             # Client Secret id of the Azue account
-  subscription_id     = ""                                                             # Subscription id of the Azue account
-  tenant_id           = ""                                                             # Tenant id of the Azue account
-  skip_provider_registration = true
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      version = ">=4.57.0"
+    }
+    azapi = {
+      source = "Azure/azapi"
+      version = ">=2.8.0"
+    }
+  }
 }
 
-module "red5pro_single" {
-  source                    = "../../"
-  azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
+provider "azurerm" {
+  features {}
+  client_id       = "xxxxxxxxxxxxx"
+  client_secret   = "xxxxxxxxxxxxx"
+  subscription_id = "xxxxxxxxxxxxx"
+  tenant_id       = "xxxxxxxxxxxxx"
+}
 
-  create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
-  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
+provider "azapi" {
+  client_id       = "xxxxxxxxxxxxx"
+  client_secret   = "xxxxxxxxxxxxx"
+  subscription_id = "xxxxxxxxxxxxx"
+  tenant_id       = "xxxxxxxxxxxxx"
+}
 
-  ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
-  type                      = "single"                                                       # Deployment type: single, cluster, autoscaling
-  name                      = "red5pro-single"                                               # Name to be used on all the resources as identifier
-  path_to_red5pro_build     = "./red5pro-server-0.0.0-release.zip"                           # Absolute path or relative path to Red5 Pro server ZIP file
+module "red5pro_standalone" {
+  source                                   = "red5pro/red5pro/azure"
+  azure_region                             = "eastus"                                # Azure region where resources will create eg: eastus
+
+  azure_resource_group_use_existing        = false                                   # false - create a new resource group, true -use existing resource group
+  existing_azure_resource_group_name       = "example-group-name"                    # If azure_resource_group_use_existing = true, provide existing resource group name where new resources will be created
+
+  ubuntu_version                           = "22.04"                                 # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
+  type                                     = "standalone"                            # Deployment type: standalone, cluster, autoscale
+  name                                     = "red5pro-standalone"                    # Name to be used on all the resources as identifier
+  path_to_red5pro_build                    = "./red5pro-server-0.0.0.0-release.zip"  # Absolute path or relative path to Red5 Pro server ZIP file
 
   # SSH key configuration
-  create_new_ssh_keys              = true                                                    # true - create new SSH key, false - use existing SSH key
-  ssh_key_name                     = "new_key_name"                                          # Name for new SSH key
-  existing_public_ssh_key_path     = "./example-public.pub"                                  # Path to existing SSH public key
-  existing_private_ssh_key_path    = "./example-private.pem"                                 # Path to existing SSH private key
+  ssh_key_use_existing                     = false                                   # true - Use existing SSH key, false - create new SSH keys
+  existing_public_ssh_key_path             = "./example-public.pub"                  # Path to existing SSH public key
+  existing_private_ssh_key_path            = "./example-private.pem"                 # Path to existing SSH private key
 
   # VPC configuration
-  vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
+  vpc_cidr_block                           = "10.5.0.0/16"                           # VPC CIDR value for creating a new vpc in Azure
 
-  # Single Red5 Pro server HTTPS/SSL certificate configuration
-  https_letsencrypt_enable                   = false                                         # true - create new Let's Encrypt HTTPS/SSL certificate, false - use Red5 Pro server without HTTPS/SSL certificate
-  https_letsencrypt_certificate_domain_name  = "red5pro.example.com"                         # Domain name for Let's Encrypt SSL certificate
-  https_letsencrypt_certificate_email        = "email@example.com"                           # Email for Let's Encrypt SSL certificate
-  https_letsencrypt_certificate_password     = "examplepass"                                 # Password for Let's Encrypt SSL certificate
+  # standalone Red5 Pro server Instance configuration
+  standalone_virtual_machine_size          = "Standard_F2s_v2"                       # Machine size for Red5 Pro server
+  standalone_virtual_machine_storage_type  = "Premium_LRS"                           # Storage type for Red5 Pro server (Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS)
+
+  # Red5Pro general configuration
+  red5pro_license_key                      = "1111-2222-3333-4444"                   # Red5 Pro license key (https://account.red5.net/login)
+  red5pro_api_enable                       = true                                    # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5.net/docs/development/api/overview/)
+  red5pro_api_key                          = "example_key"                           # Red5 Pro server API key (https://www.red5.net/docs/development/api/overview/)
+
+  # Standalone Red5 Pro server HTTPS (SSL) certificate configuration
+  https_ssl_certificate                    = "none"                                  # none - do not use HTTPS/SSL certificate, letsencrypt - create new Let's Encrypt HTTPS/SSL certificate, imported - use existing HTTPS/SSL certificate
+
+  # Example of Let's Encrypt HTTPS/SSL certificate configuration - please uncomment and provide your domain name and email
+  # https_ssl_certificate                  = "letsencrypt"
+  # https_ssl_certificate_domain_name      = "red5pro.example.com"                   # Replace with your domain name
+  # https_ssl_certificate_email            = "email@example.com"                     # Replace with your email
+
+  # Example of imported HTTPS/SSL certificate configuration - please uncomment and provide your domain name, certificate and key paths
+  # https_ssl_certificate                  = "imported"
+  # https_ssl_certificate_domain_name      = "red5pro.example.com"                   # Replace with your domain name
+  # https_ssl_certificate_cert_path        = "/PATH/TO/SSL/CERT/fullchain.pem"       # Path to cert file or full chain file
+  # https_ssl_certificate_key_path         = "/PATH/TO/SSL/KEY/privkey.pem"          # Path to privkey file
   
-  # Single Red5 Pro server Instance configuration
-  virtual_machine_size                          = "Standard_F2s_v2"                          # Instance size for Red5 Pro server
-  virtual_machine_storage_type                  = "Premium_LRS"                              # Storage type for Red5 Pro server (Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS)
-
-  # Red5Pro server configuration
-  red5pro_license_key                           = "1111-2222-3333-4444"                      # Red5 Pro license key (https://account.red5pro.com/login)
-  red5pro_api_enable                            = true                                       # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
-  red5pro_api_key                               = "examplekey"                               # Red5 Pro server API key (https://www.red5pro.com/docs/development/api/overview/)
-  red5pro_inspector_enable                      = false                                      # true - enable Red5 Pro server inspector, false - disable Red5 Pro server inspector (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)
-  red5pro_restreamer_enable                     = false                                      # true - enable Red5 Pro server restreamer, false - disable Red5 Pro server restreamer (https://www.red5pro.com/docs/special/restreamer/overview/)
-  red5pro_socialpusher_enable                   = false                                      # true - enable Red5 Pro server socialpusher, false - disable Red5 Pro server socialpusher (https://www.red5pro.com/docs/special/social-media-plugin/overview/)
-  red5pro_suppressor_enable                     = false                                      # true - enable Red5 Pro server suppressor, false - disable Red5 Pro server suppressor
-  red5pro_hls_enable                            = false                                      # true - enable Red5 Pro server HLS, false - disable Red5 Pro server HLS (https://www.red5pro.com/docs/protocols/hls-plugin/hls-vod/)
-  red5pro_round_trip_auth_enable                = false                                      # true - enable Red5 Pro server round trip authentication, false - disable Red5 Pro server round trip authentication (https://www.red5pro.com/docs/special/round-trip-auth/overview/)
-  red5pro_round_trip_auth_host                  = "round-trip-auth.example.com"              # Round trip authentication server host
-  red5pro_round_trip_auth_port                  = 3000                                       # Round trip authentication server port
-  red5pro_round_trip_auth_protocol              = "http"                                     # Round trip authentication server protocol
-  red5pro_round_trip_auth_endpoint_validate     = "/validateCredentials"                     # Round trip authentication server endpoint for validate
-  red5pro_round_trip_auth_endpoint_invalidate   = "/invalidateCredentials"                   # Round trip authentication server endpoint for invalidate
-  red5pro_cloudstorage_enable                   = false                                      # Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)
-  red5pro_azure_storage_account_name            = ""                                         # Red5 Pro server cloud storage - Azure storage account name
-  red5pro_azure_storage_account_key             = ""                                         # Red5 Pro server cloud storage - Azure storage account key
-  red5pro_azure_storage_container_name          = ""                                         # Red5 Pro server cloud storage - Azure storage container name
-  red5pro_cloudstorage_postprocessor_enable     = false                                      # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
+  # Standalone Red5pro Server Configuration
+  standalone_red5pro_inspector_enable                    = false                             # true - enable Red5 Pro server inspector, false - disable Red5 Pro server inspector (https://www.red5.net/docs/troubleshooting/inspector/overview/)
+  standalone_red5pro_restreamer_enable                   = false                             # true - enable Red5 Pro server restreamer, false - disable Red5 Pro server restreamer (https://www.red5.net/docs/special/restreamer/overview/)
+  standalone_red5pro_socialpusher_enable                 = false                             # true - enable Red5 Pro server socialpusher, false - disable Red5 Pro server socialpusher (https://www.red5.net/docs/special/social-media-plugin/overview/)
+  standalone_red5pro_suppressor_enable                   = false                             # true - enable Red5 Pro server suppressor, false - disable Red5 Pro server suppressor
+  standalone_red5pro_hls_enable                          = false                             # true - enable Red5 Pro server HLS, false - disable Red5 Pro server HLS (https://www.red5.net/docs/protocols/hls-plugin/hls-vod/)
+  standalone_red5pro_hls_output_format                   = "TS"                              # HLS output format. Options: TS, FMP4, SMP4
+  standalone_red5pro_hls_dvr_playlist                    = "false"                           # HLS DVR playlist. Options: true, false
+  standalone_red5pro_webhooks_enable                     = false                             # true - enable Red5 Pro server webhooks, false - disable Red5 Pro server webhooks (https://www.red5.net/docs/special/webhooks/overview/)
+  standalone_red5pro_webhooks_endpoint                   = "https://example.com/red5/status" # Red5 Pro server webhooks endpoint
+  standalone_red5pro_round_trip_auth_enable              = false                             # true - enable Red5 Pro server round trip authentication, false - disable Red5 Pro server round trip authentication (https://www.red5.net/docs/special/round-trip-auth/overview/)
+  standalone_red5pro_round_trip_auth_host                = "round-trip-auth.example.com"     # Round trip authentication server host
+  standalone_red5pro_round_trip_auth_port                = 3000                              # Round trip authentication server port
+  standalone_red5pro_round_trip_auth_protocol            = "http"                            # Round trip authentication server protocol
+  standalone_red5pro_round_trip_auth_endpoint_validate   = "/validateCredentials"            # Round trip authentication server endpoint for validate
+  standalone_red5pro_round_trip_auth_endpoint_invalidate = "/invalidateCredentials"          # Round trip authentication server endpoint for invalidate
+  standalone_red5pro_cloudstorage_enable                 = false                             # Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)
+  standalone_red5pro_azure_storage_account_name          = ""                                # Red5 Pro server cloud storage - Azure storage account name
+  standalone_red5pro_azure_storage_account_key           = ""                                # Red5 Pro server cloud storage - Azure storage account key
+  standalone_red5pro_azure_storage_container_name        = ""                                # Red5 Pro server cloud storage - Azure storage container name
+  standalone_red5pro_cloudstorage_postprocessor_enable   = false                             # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
 }
 
 output "module_output" {
-  sensitive = true
-  value = module.red5pro_single
+  value = module.red5pro_standalone
 }
 ```
 
----
+### Stream Manager 2.0 cluster with autoscaling nodes (cluster) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/cluster)
 
-## Red5 Pro Stream Manager cluster deployment (cluster) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/cluster)
+In the following example, Terraform module will automates the infrastructure provisioning of the Stream Manager 2.0 cluster with Red5 Pro (SM2.0) Autoscaling node group (origins, edges, transcoders, relays)
 
-* **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
-* **Security Group** - This Terrform module create a new security group in Microsoft Azure.
-* **Instance Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
-* **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
-* **MySQL Database** - Users have flexibility to create a MySQL databse server in Microsoft Azure or install it locally on the Stream Manager
-* **SSH KEYS** - This module can create and use already created SSH Keys
-* **Terraform Service** - Users has the flexibity to either create dedicate Terraform service instance or loacally install on the Stream Manager
-* **Stream Manager** - Instance will be created automatically for Stream Manager
-* **Origin Node Image** - To create Microsoft Azure(Azure) custom image for Orgin Node type for Stream Manager node group
-* **Edge Node Image** - To create Microsoft Azure(Azure) custom image for Edge Node type for Stream Manager node group (optional)
-* **Transcoder Node Image** - To create Microsoft Azure(Azure) custom image for Transcoder Node type for Stream Manager node group (optional)
-* **Relay Node Image** - To create Microsoft Azure(Azure) custom image for Relay Node type for Stream Manager node group (optional)
+#### Terraform Deployed Resources (cluster)
 
-## Usage (cluster)
+- Resource Group (You can use existing resource group)
+- Virtual Network
+- Public subnet
+- Security group for Stream Manager 2.0
+- Security group for Kafka
+- Security group for Red5 Pro (SM2.0) Autoscaling nodes
+- SSH key pair (use existing or create a new one)
+- Standalone Kafka instance (optional).
+- Stream Manager 2.0 instance. Optionally include a Kafka server on the same instance.
+- SSL certificate for Stream Manager 2.0 instance. Options:
+  - `none` - Stream Manager 2.0 without HTTPS and SSL certificate. Only HTTP on port `80`
+  - `letsencrypt` - Stream Manager 2.0 with HTTPS and SSL certificate obtained by Let's Encrypt. HTTP on port `80`, HTTPS on port `443`
+  - `imported` - Stream Manager 2.0 with HTTPS and imported SSL certificate. HTTP on port `80`, HTTPS on port `443`
+- Red5 Pro (SM2.0) node instance image (origins, edges, transcoders, relays)
+- Red5 Pro (SM2.0) Autoscaling node group (origins, edges, transcoders, relays)
+
+#### Example main.tf (cluster)
 
 ```hcl
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      version = ">=4.57.0"
+    }
+    azapi = {
+      source = "Azure/azapi"
+      version = ">=2.8.0"
+    }
+  }
+}
+
 provider "azurerm" {
   features {}
-  client_id           = ""                                                             # Client id of the Azue account
-  client_secret       = ""                                                             # Client Secret id of the Azue account
-  subscription_id     = ""                                                             # Subscription id of the Azue account
-  tenant_id           = ""                                                             # Tenant id of the Azue account
-  skip_provider_registration = true
+  client_id       = "xxxxxxxxxxxxx"
+  client_secret   = "xxxxxxxxxxxxx"
+  subscription_id = "xxxxxxxxxxxxx"
+  tenant_id       = "xxxxxxxxxxxxx"
+}
+provider "azapi" {
+  client_id       = "xxxxxxxxxxxxx"
+  client_secret   = "xxxxxxxxxxxxx"
+  subscription_id = "xxxxxxxxxxxxx"
+  tenant_id       = "xxxxxxxxxxxxx"
 }
 
 module "red5pro_cluster" {
-  source                    = "../../"
-  azure_client_id           = ""                                                             # Client id of the Azue account
-  azure_client_secret       = ""                                                             # Client Secret id of the Azue account
-  azure_subscription_id     = ""                                                             # Subscription id of the Azue account
-  azure_tenant_id           = ""                                                             # Tenant id of the Azue account
-  azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
+  source                                = "red5pro/red5pro/azure"
+  azure_client_id                       = "xxxxxxxxxxxxx"                  # Client id of the Azue account   https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_secret#creating-a-service-principal
+  azure_client_secret                   = "xxxxxxxxxxxxx"                  # Client Secret of the Azue account
+  azure_subscription_id                 = "xxxxxxxxxxxxx"                  # Subscription id of the Azue account
+  azure_tenant_id                       = "xxxxxxxxxxxxx"                  # Tenant id of the Azue account
+  azure_region                          = "eastus"                         # Azure region where resources will create eg: eastus
 
-  create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
-  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
+  azure_resource_group_use_existing        = false                         # false - create a new resource group, true -use existing resource group
+  existing_azure_resource_group_name       = "example-group-name"          # If azure_resource_group_use_existing = true, provide existing resource group name where new resources will be created
 
-  ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
-  type                      = "cluster"                                                      # Deployment type: single, cluster, autoscaling
-  name                      = "red5pro-cluster"                                                             # Name to be used on all the resources as identifier
-  path_to_red5pro_build     = "./red5pro-server-0.0.0.0-release.zip"                         # Absolute path or relative path to Red5 Pro server ZIP file
-  path_to_terraform_cloud_controller = "./terraform-cloud-controller-0.0.0.jar"              # Absolute path or relative path to terraform cloud controller jar file
-  path_to_terraform_service_build    = "./terraform-service-0.0.0.zip"                       # Absolute path or relative path to terraform service ZIP file
- 
+  ubuntu_version                        = "22.04"                          # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
+  type                                  = "cluster"                        # Deployment type: standalone, cluster, autoscale
+  name                                  = "red5pro-cluster"                # Name to be used on all the resources as identifier
+  path_to_red5pro_build                 = "./red5pro-server-0.0.0.0-release.zip"   # Absolute path or relative path to Red5 Pro server ZIP file
+
   # SSH key configuration
-  create_new_ssh_keys              = true                                                    # true - create new SSH key, false - use existing SSH key
-  ssh_key_name                     = "new_key_name"                                          # Name for new SSH key
-  existing_public_ssh_key_path     = "./example-public.pub"                                  # Path to existing SSH public key
-  existing_private_ssh_key_path    = "./example-private.pem"                                 # Path to existing SSH private key
-  
+  ssh_key_use_existing                  = false                            # true - Use existing SSH key, false - create new SSH keys
+  existing_public_ssh_key_path          = "./example-public.pub"           # Path to existing SSH public key
+  existing_private_ssh_key_path         = "./example-private.pem"          # Path to existing SSH private key
+
   # VPC configuration
-  vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
+  vpc_cidr_block                        = "10.5.0.0/16"                    # VPC CIDR value for creating a new vpc in Azure
 
-  # Database Configuration
-  mysql_database_create     = true                                                           # true - create a new database false- Install locally on the stream manager
-  mysql_database_sku        = "GP_Standard_D2ds_v4"                                          # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. GP_Standard_D2ds_v4, GP_Standard_D2ds_v5).
-  mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
-  mysql_username            = "example_user"                                                 # Username for locally install databse and dedicated database in azure
-  mysql_password            = "Abc@123abc456ABC"                                             # Password for locally install databse and dedicated database in azure
-  mysql_port                = 3306                                                           # Port for locally install databse and dedicated database in azure
-
-  # Terraform Service configuration
-  terraform_service_instance_create = false                                                  # true - Create a dedicate terraform service machine, false - install terraform service locally on the stream manager
-  terraform_service_api_key         = ""                                                     # Terraform service api key
-  terraform_service_parallelism     = "20"                                                   # Terraform service parallelism
-  terraform_service_machine_size    = "Standard_F2s_v2"                                      # Instance size for Terraform service
-  terraform_service_machine_storage_type    = "Premium_LRS"                                  # Terraform service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  # Kafka Service configuration
+  kafka_standalone_instance_create      = false
+  kafka_standalone_volume_size          = "30"                             # Volume size in GB for Kafka standalone instance
+  kafka_service_machine_size            = "Standard_F8s_v2"                # Machine size for Kafka service
+  kafka_service_machine_storage_type    = "Premium_LRS"                    # Kafka service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
 
   # Red5 Pro general configuration
-  red5pro_license_key                           = "1111-2222-3333-4444"                      # Red5 Pro license key (https://account.red5pro.com/login)
-  red5pro_cluster_key                           = ""                                         # Red5 Pro cluster key
-  red5pro_api_enable                            = true                                       # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
-  red5pro_api_key                               = ""                                         # Red5 Pro server API key (https://www.red5pro.com/docs/development/api/overview/)
+  red5pro_license_key                   = "1111-2222-3333-4444"            # Red5 Pro license key (https://account.red5pro.com/login)
+  red5pro_api_enable                    = true                             # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
+  red5pro_api_key                       = "example_key"                    # Red5 Pro server API key (https://www.red5pro.com/docs/development/api/overview/)
 
-  # Red5 Pro server HTTPS/SSL certificate configuration
-  https_letsencrypt_enable                   = false                                         # true - create new Let's Encrypt HTTPS/SSL certificate, false - use Red5 Pro server without HTTPS/SSL certificate
-  https_letsencrypt_certificate_domain_name  = "red5pro.example.com"                         # Domain name for Let's Encrypt SSL certificate
-  https_letsencrypt_certificate_email        = "email@example.com"                           # Email for Let's Encrypt SSL certificate
-  https_letsencrypt_certificate_password     = "examplepass"                                 # Password for Let's Encrypt SSL certificate
+  # Stream Manager Instance configuration
+  stream_manager_machine_size           = "Standard_F4s_v2"                # Machine size for stream manager
+  stream_manager_machine_storage_type   = "Premium_LRS"                    # Stream Manager storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  stream_manager_volume_size            = 30                               # Volume size for Stream Manager
+  stream_manager_auth_user              = "example_user"                   # Stream Manager 2.0 authentication user name
+  stream_manager_auth_password          = "example_password"               # Stream Manager 2.0 authentication password
+  stream_manager_proxy_user             = "example_proxy_user"             # Stream Manager 2.0 proxy user name
+  stream_manager_proxy_password         = "example_proxy_password"         # Stream Manager 2.0 proxy password
+  stream_manager_spatial_user           = "example_spatial_user"           # Stream Manager 2.0 spatial user name
+  stream_manager_spatial_password       = "example_spatial_password"       # Stream Manager 2.0 spatial password
+  stream_manager_version                = "latest"                         # Stream Manager 2.0 docker images version (latest, 14.1.0, 14.1.1, etc.) - https://hub.docker.com/r/red5pro/as-admin/tags
+
+  # Stream Manager 2.0 server HTTPS (SSL) certificate configuration
+  https_ssl_certificate                 = "none"                           # none - do not use HTTPS/SSL certificate, letsencrypt - create new Let's Encrypt HTTPS/SSL certificate, imported - use existing HTTPS/SSL certificate
+
+  # Example of Let's Encrypt HTTPS/SSL certificate configuration - please uncomment and provide your domain name and email
+  # https_ssl_certificate               = "letsencrypt"
+  # https_ssl_certificate_domain_name   = "red5pro.example.com"            # Replace with your domain name
+  # https_ssl_certificate_email         = "email@example.com"              # Replace with your email
+
+  # Example of imported HTTPS/SSL certificate configuration - please uncomment and provide your domain name, certificate and key paths
+  # https_ssl_certificate               = "imported"
+  # https_ssl_certificate_domain_name   = "red5pro.example.com"             # Replace with your domain name
+  # https_ssl_certificate_cert_path     = "/PATH/TO/SSL/CERT/fullchain.pem" # Path to cert file or full chain file
+  # https_ssl_certificate_key_path      = "/PATH/TO/SSL/KEY/privkey.pem"    # Path to privkey file
+
+  # Red5 Pro autoscaling Node image configuration
+  node_image_create                     = true                             # Default: true for Autoscaling and Cluster, true - create new Node image, false - not create new Node image
+  node_machine_size                     = "Standard_F2s_v2"                # Machine size for Origin node image
+  node_machine_storage_type             = "Premium_LRS"                    # Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  node_image_volume_size                = 30                               # Origin node volume size
   
-  # Red5 Pro server Instance configuration
-  stream_manager_machine_size                   = "Standard_F2s_v2"                          # Instance size for Red5 Pro server
-  stream_manager_machine_storage_type           = "Premium_LRS"                              # Stream Manager storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
-  stream_manager_api_key                        = ""                                         # Stream Manager api key
-  azure_virtual_machine_password                = "Abc@1234"                                 # Virtual machine password which is to be used for created nodes of red5 pro.
-
-  # Red5 Pro cluster Origin node image configuration
-  origin_image_create                                      = true                          # Default: true for Autoscaling and Cluster, true - create new Origin node image, false - not create new Origin node image
-  origin_machine_size                                      = "Standard_F2s_v2"             # Instance type for Origin node image
-  origin_machine_storage_type                              = "Premium_LRS"                 # Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
-  origin_image_red5pro_inspector_enable                    = false                         # true - enable Red5 Pro server inspector, false - disable Red5 Pro server inspector (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)
-  origin_image_red5pro_restreamer_enable                   = false                         # true - enable Red5 Pro server restreamer, false - disable Red5 Pro server restreamer (https://www.red5pro.com/docs/special/restreamer/overview/)
-  origin_image_red5pro_socialpusher_enable                 = false                         # true - enable Red5 Pro server socialpusher, false - disable Red5 Pro server socialpusher (https://www.red5pro.com/docs/special/social-media-plugin/overview/)
-  origin_image_red5pro_suppressor_enable                   = false                         # true - enable Red5 Pro server suppressor, false - disable Red5 Pro server suppressor
-  origin_image_red5pro_hls_enable                          = false                         # true - enable Red5 Pro server HLS, false - disable Red5 Pro server HLS (https://www.red5pro.com/docs/protocols/hls-plugin/hls-vod/)
-  origin_image_red5pro_round_trip_auth_enable              = false                         # true - enable Red5 Pro server round trip authentication, false - disable Red5 Pro server round trip authentication (https://www.red5pro.com/docs/special/round-trip-auth/overview/)
-  origin_image_red5pro_round_trip_auth_host                = "round-trip-auth.example.com" # Round trip authentication server host
-  origin_image_red5pro_round_trip_auth_port                = 3000                          # Round trip authentication server port
-  origin_image_red5pro_round_trip_auth_protocol            = "http"                        # Round trip authentication server protocol
-  origin_image_red5pro_round_trip_auth_endpoint_validate   = "/validateCredentials"        # Round trip authentication server endpoint for validate
-  origin_image_red5pro_round_trip_auth_endpoint_invalidate = "/invalidateCredentials"      # Round trip authentication server endpoint for invalidate
-  origin_red5pro_cloudstorage_enable                   = false                             # Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)
-  origin_red5pro_azure_storage_account_name            = ""                                # Red5 Pro server cloud storage - Azure storage account name
-  origin_red5pro_azure_storage_account_key             = ""                                # Red5 Pro server cloud storage - Azure storage account key
-  origin_red5pro_azure_storage_container_name          = ""                                # Red5 Pro server cloud storage - Azure storage container name
-  origin_red5pro_cloudstorage_postprocessor_enable     = false                             # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
-
-  # Red5 Pro autoscaling Node group - (Optional)
-  node_group_create                   = true                                               # Linux or Mac OS only. true - create new Node group, false - not create new Node group
-  node_group_name                     = "example-node-group"                               # Node group name
-  # Origin node configuration
-  node_group_origins_min               = 1                                                 # Number of minimum Origins
-  node_group_origins_max               = 20                                                # Number of maximum Origins
-  node_group_origins_machine_size     = "Standard_F2s_v2"                                  # Origins azure instance
-  node_group_origins_capacity         = 30                                                 # Connections capacity for Origins
-  # Edge node configuration
-  node_group_edges_min                 = 1                                                 # Number of minimum Edges
-  node_group_edges_max                 = 40                                                # Number of maximum Edges
-  node_group_edges_machine_size       = "Standard_F2s_v2"                                  # Edges azure instance
-  node_group_edges_capacity           = 300                                                # Connections capacity for Edges
-  # Transcoder node configuration
-  node_group_transcoders_min           = 0                                                 # Number of minimum Transcoders
-  node_group_transcoders_max           = 20                                                # Number of maximum Transcoders
-  node_group_transcoders_machine_size = "Standard_F2s_v2"                                  # Transcodersazure instance
-  node_group_transcoders_capacity     = 30                                                 # Connections capacity for Transcoders
-  # Relay node configuration
-  node_group_relays_min                = 0                                                 # Number of minimum Relays
-  node_group_relays_max                = 20                                                # Number of maximum Relays
-  node_group_relays_machine_size      = "Standard_F2s_v2"                                  # Relays azure instance
-  node_group_relays_capacity          = 30                                                 # Connections capacity for Relays
-
+  # Extra configuration for Red5 Pro autoscaling nodes
+  # Webhooks configuration - (Optional) https://www.red5.net/docs/special/webhooks/overview/
+  node_config_webhooks = {
+    enable           = false,
+    target_nodes     = ["origin", "edge", "transcoder"],
+    webhook_endpoint = "https://test.webhook.app/api/v1/broadcast/webhook"
+  }
+  # Round trip authentication configuration - (Optional) https://www.red5.net/docs/special/authplugin/simple-auth/
+  node_config_round_trip_auth = {
+    enable                   = false,
+    target_nodes             = ["origin", "edge", "transcoder"],
+    auth_host                = "round-trip-auth.example.com",
+    auth_port                = 443,
+    auth_protocol            = "https://",
+    auth_endpoint_validate   = "/validateCredentials",
+    auth_endpoint_invalidate = "/invalidateCredentials"
+  }
+  # Restreamer configuration - (Optional) https://www.red5.net/docs/special/restreamer/overview/
+  node_config_restreamer = {
+    enable               = false,
+    target_nodes         = ["origin", "transcoder"],
+    restreamer_tsingest  = true,
+    restreamer_ipcam     = true,
+    restreamer_whip      = true,
+    restreamer_srtingest = true
+  }
+  # Social Pusher configuration - (Optional) https://www.red5.net/docs/development/social-media-plugin/rest-api/
+  node_config_social_pusher = {
+    enable       = false,
+    target_nodes = ["origin", "edge", "transcoder"],
+  }
+ 
+  # Red5 Pro autoscaling Node group
+  node_group_create                       = true              # Linux or Mac OS only. true - create new Node group, false - not create new Node group
+  node_group_origins_min                  = 1                 # Number of minimum Origins
+  node_group_origins_max                  = 20                # Number of maximum Origins
+  node_group_origins_machine_size         = "Standard_F2s_v2" # Machine size for Origins
+  node_group_origins_volume_size          = 30                # Volume size for Origins
+  node_group_origins_connection_limit     = 20                # Maximum number of publishers to the origin server
+  node_group_edges_min                    = 1                 # Number of minimum Edges
+  node_group_edges_max                    = 20                # Number of maximum Edges
+  node_group_edges_machine_size           = "Standard_F2s_v2" # Machine size for Edges
+  node_group_edges_volume_size            = 30                # Volume size for Edges
+  node_group_edges_connection_limit       = 200               # Maximum number of subscribers to the edge server
+  node_group_transcoders_min              = 0                 # Number of minimum Transcoders
+  node_group_transcoders_max              = 20                # Number of maximum Transcoders
+  node_group_transcoders_machine_size     = "Standard_F2s_v2" # Machine size for Transcoders
+  node_group_transcoders_volume_size      = 30                # Volume size for Transcoders
+  node_group_transcoders_connection_limit = 20                # Maximum number of publishers to the transcoder server
+  node_group_relays_min                   = 0                 # Number of minimum Relays
+  node_group_relays_max                   = 20                # Number of maximum Relays
+  node_group_relays_machine_size          = "Standard_F2s_v2" # Machine size for Relays
+  node_group_relays_volume_size           = 30                # Volume size for Relays
 }
 
 output "module_output" {
-  sensitive = true
   value = module.red5pro_cluster
 }
 ```
-## Red5 Pro Stream Manager autoscaling deployment (autoscaling) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/autoscale)
 
-* **VPC** - This Terrform module can either create a new or use your existing VPC. If you wish to create a new VPC, set `vpc_create` to `true`, and the script will ignore the other VPC configurations. To use your existing VPC, set `vpc_create` to `false` and include your existing vpc name.
-* **Security Group** - This Terrform module create a new security group in Microsoft Azure.
-* **Instance Size** - Select the appropriate instance size based on the usecase from Microsoft Azure.
-* **SSL Certificates** - User can install Let's encrypt SSL certificates or use Red5Pro server without SSL certificate (HTTP only).
-* **MySQL Database** - Users have flexibility to create a MySQL databse server in Microsoft Azure or install it locally on the Stream Manager
-* **SSH KEYS** - This module can create and use already created SSH Keys
-* **Terraform Service** - This module create dedicate Terraform service instance for the Stream Manager
-* **Stream Manager** - Instance will be created automatically for Stream Manager
-* **Application Gateway** - This Terraform Module create the application gateway to distribute the requests.
-* **Origin Node Image** - To create Microsoft Azure(Azure) custom image for Orgin Node type for Stream Manager node group
-* **Edge Node Image** - To create Microsoft Azure(Azure) custom image for Edge Node type for Stream Manager node group (optional)
-* **Transcoder Node Image** - To create Microsoft Azure(Azure) custom image for Transcoder Node type for Stream Manager node group (optional)
-* **Relay Node Image** - To create Microsoft Azure(Azure) custom image for Relay Node type for Stream Manager node group (optional)
+### Autoscaling Stream Managers 2.0 with autoscaling nodes (autoscale) - [Example](https://github.com/red5pro/terraform-azure-red5pro/tree/master/examples/autoscale)
 
-## Usage (autoscaling)
+In the following example, Terraform module will automates the infrastructure provisioning of the Autoscale Stream Managers 2.0 with Red5 Pro (SM2.0) Autoscaling node group (origins, edges, transcoders, relays)
+
+#### Terraform Deployed Resources (autoscale)
+
+- Resource Group (You can use existing resource group)
+- Virtual Network
+- Public subnet
+- Security group for Stream Manager 2.0
+- Security group for Kafka
+- Security group for Red5 Pro (SM2.0) Autoscaling nodes
+- SSH key pair (use existing or create a new one)
+- Standalone Kafka instance
+- Stream Manager 2.0 instance image
+- Instance poll for Stream Manager 2.0 instances
+- Autoscaling configuration for Stream Manager 2.0 instances
+- Application Load Balancer for Stream Manager 2.0 instances.
+- SSL certificate for Application Load Balancer. Options:
+  - `none` - Load Balancer without HTTPS and SSL certificate. Only HTTP on port `80`
+  - `imported` - Load Balancer with HTTPS and imported SSL certificate. HTTP on port `80`, HTTPS on port `443`
+- Red5 Pro (SM2.0) node instance image (origins, edges, transcoders, relays)
+- Red5 Pro (SM2.0) Autoscaling node group (origins, edges, transcoders, relays)
+
+
+#### Example main.tf (autoscale)
 
 ```hcl
-provider "azurerm" {
-  features {}
-  client_id           = ""                                                             # Client id of the Azue account
-  client_secret       = ""                                                             # Client Secret id of the Azue account
-  subscription_id     = ""                                                             # Subscription id of the Azue account
-  tenant_id           = ""                                                             # Tenant id of the Azue account
-  skip_provider_registration = true
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      version = ">=4.57.0"
+    }
+    azapi = {
+      source = "Azure/azapi"
+      version = ">=2.8.0"
+    }
+  }
 }
 
-module "red5pro_autoscaling" {
-  source                    = "../../"
-  azure_client_id           = ""                                                             # Client id of the Azue account
-  azure_client_secret       = ""                                                             # Client Secret id of the Azue account
-  azure_subscription_id     = ""                                                             # Subscription id of the Azue account
-  azure_tenant_id           = ""                                                             # Tenant id of the Azue account
-  azure_region              = "eastus"                                                       # Azure region where resources will create eg: eastus
+provider "azurerm" {
+  features {}
+  client_id       = "xxxxxxxxxxxxx"
+  client_secret   = "xxxxxxxxxxxxx"
+  subscription_id = "xxxxxxxxxxxxx"
+  tenant_id       = "xxxxxxxxxxxxx"
+}
+provider "azapi" {
+  client_id       = "xxxxxxxxxxxxx"
+  client_secret   = "xxxxxxxxxxxxx"
+  subscription_id = "xxxxxxxxxxxxx"
+  tenant_id       = "xxxxxxxxxxxxx"
+}
 
-  create_azure_resource_group        = true                                                  # True - Create a new resource group in azure account, False - Use existing resource group
-  existing_azure_resource_group_name = ""                                                    # If create_azure_resource_group = false, the existing resource group name should follow this namning convention 'resource_group_name-region'.
-  new_azure_resource_group_name      = "test-group-name"                                     # If create_azure_resource_group = true, Provide new resource group name, the region name will automatically add in the end of resource group name. eg: new_azure_resource_group_name='new_resource', Region='eastus'. Final name of resource group='new_resource-eastus'
+module "red5pro_autoscale" {
+  source                              = "red5pro/red5pro/azure"
+  azure_client_id                     = "xxxxxxxxxxxxx"                   # Client id of the Azue account
+  azure_client_secret                 = "xxxxxxxxxxxxx"                   # Client Secret id of the Azue account
+  azure_subscription_id               = "xxxxxxxxxxxxx"                   # Subscription id of the Azue account
+  azure_tenant_id                     = "xxxxxxxxxxxxx"                   # Tenant id of the Azue account
+  azure_region                        = "eastus"                          # Azure region where resources will create eg: eastus
 
-  ubuntu_version            = "22.04"                                                        # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
-  type                      = "autoscaling"                                                  # Deployment type: single, cluster, autoscaling
-  name                      = "red5pro-autoscaling"                                          # Name to be used on all the resources as identifier
-  path_to_red5pro_build     = "./red5pro-server-0.0.0.0-release.zip"                         # Absolute path or relative path to Red5 Pro server ZIP file
-  path_to_terraform_cloud_controller = "./terraform-cloud-controller-0.0.0.jar"              # Absolute path or relative path to terraform cloud controller jar file
-  path_to_terraform_service_build    = "./terraform-service-0.0.0.zip"                       # Absolute path or relative path to terraform service ZIP file
+  azure_resource_group_use_existing        = false                        # false - create a new resource group, true -use existing resource group
+  existing_azure_resource_group_name       = "example-group-name"         # If azure_resource_group_use_existing = true, provide existing resource group name where new resources will be created
+
+  ubuntu_version                      = "22.04"                           # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
+  type                                = "autoscale"                       # Deployment type: standalone, cluster, autoscale
+  name                                = "red5pro-autoscale"               # Name to be used on all the resources as identifier
+  path_to_red5pro_build               = "./red5pro-server-0.0.0.0-release.zip" # Absolute path or relative path to Red5 Pro server ZIP file
 
   # SSH key configuration
-  create_new_ssh_keys              = true                                                    # true - create new SSH key, false - use existing SSH key
-  ssh_key_name                     = "new_key_name"                                          # Name for new SSH key
-  existing_public_ssh_key_path     = "./example-public.pub"                                  # Path to existing SSH public key
-  existing_private_ssh_key_path    = "./example-private.pem"                                 # Path to existing SSH private key
-  
-  # VPC configuration
-  vpc_cidr_block                   = "10.5.0.0/16"                                           # VPC CIDR value for creating a new vpc in Azure
+  ssh_key_use_existing                = false                             # true - Use existing SSH key, false - create new SSH keys
+  existing_public_ssh_key_path        = "./example-public.pub"            # Path to existing SSH public key
+  existing_private_ssh_key_path       = "./example-private.pem"           # Path to existing SSH private key
 
-  # Database Configuration
-  mysql_database_sku        = "GP_Standard_D2ds_v4"                                          # New database sku name. The name of the SKU, follows the tier + family + cores pattern (e.g. GP_Standard_D2ds_v4, GP_Standard_D2ds_v5).
-  mysql_storage_mb          = "5120"                                                         # Specifies the maximum storage allowed for a given server. eg: 5120
-  mysql_username            = "example_user"                                                 # Username for locally install databse and dedicated database in azure
-  mysql_password            = "Abc@123abc456ABC"                                             # Password for locally install databse and dedicated database in azure
-  mysql_port                = 3306                                                           # Port for locally install databse and dedicated database in azure
+  # VPC configuration
+  vpc_cidr_block                      = "10.5.0.0/16"                     # VPC CIDR value for creating a new vpc in Azure
+
+  # Kafka Service configuration
+  kafka_standalone_volume_size        = "30"                              # Volume size in GB for Kafka standalone instance
+  kafka_service_machine_size          = "Standard_F8s_v2"                 # Machine size for Kafka service
+  kafka_service_machine_storage_type  = "Premium_LRS"                     # Kafka service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
 
   # Red5 Pro general configuration
-  red5pro_license_key                           = "1111-2222-3333-4444"                      # Red5 Pro license key (https://account.red5pro.com/login)
-  red5pro_cluster_key                           = ""                                         # Red5 Pro cluster key
-  red5pro_api_enable                            = true                                       # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
-  red5pro_api_key                               = ""                                         # Red5 Pro server API key (https://www.red5pro.com/docs/development/api/overview/)
+  red5pro_license_key                 = "1111-2222-3333-4444"             # Red5 Pro license key (https://account.red5pro.com/login)
+  red5pro_api_enable                  = true                              # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
+  red5pro_api_key                     = "example_key"                     # Red5 Pro server API key (https://www.red5pro.com/docs/development/api/overview/)
 
-  # Terraform Service configuration
-  terraform_service_api_key         = "examplekey"                                           # Terraform service api key
-  terraform_service_parallelism     = "20"                                                   # Terraform service parallelism
-  terraform_service_machine_size    = "Standard_F2s_v2"                                      # Instance size for Terraform service
-  terraform_service_machine_storage_type    = "Premium_LRS"                                  # Terraform service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  # Stream Manager Instance configuration
+  stream_manager_count                = 2                                 # Stream Manager 2.0 instance count
+  stream_manager_machine_size         = "Standard_F4s_v2"                 # Machine size for stream manager
+  stream_manager_machine_storage_type = "Premium_LRS"                     # Stream Manager storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  stream_manager_volume_size          = 30                                # Volume size for Stream Manager
+  stream_manager_auth_user            = "example_user"                    # Stream Manager 2.0 authentication user name
+  stream_manager_auth_password        = "example_password"                # Stream Manager 2.0 authentication password
+  stream_manager_proxy_user           = "example_proxy_user"              # Stream Manager 2.0 proxy user name
+  stream_manager_proxy_password       = "example_proxy_password"          # Stream Manager 2.0 proxy password
+  stream_manager_spatial_user         = "example_spatial_user"            # Stream Manager 2.0 spatial user name
+  stream_manager_spatial_password     = "example_spatial_password"        # Stream Manager 2.0 spatial password
+  stream_manager_version              = "latest"                          # Stream Manager 2.0 docker images version (latest, 14.1.0, 14.1.1, etc.) - https://hub.docker.com/r/red5pro/as-admin/tags
 
-  # Application Gateway Configuration
-  application_gateway_sku_name               = "Standard_v2"                                 # The Name of the SKU to use for this Application Gateway. Possible values are Standard_Small, Standard_Medium, Standard_Large, Standard_v2, WAF_Medium, WAF_Large, and WAF_v2.
-  application_gateway_sku_tier               = "Standard_v2"                                 # The Tier of the SKU to use for this Application Gateway. Possible values are Standard, Standard_v2, WAF and WAF_v2.
-  application_gateway_sku_capacity           = 2                                             # The number of instances to use for this Application Gateway. This value is only allowed to be set when the SKU name is Standard_v2 or WAF_v2.          
+  # Stream Manager 2.0 server HTTPS (SSL) certificate configuration
+  https_ssl_certificate               = "none"                            # none - do not use HTTPS/SSL certificate, imported - use existing HTTPS/SSL certificate
 
-  # Red5 Pro server Instance configuration
-  stream_manager_machine_size                   = "Standard_F2s_v2"                          # Instance size for Red5 Pro server
-  stream_manager_machine_storage_type           = "Premium_LRS"                              # Stream Manager storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
-  stream_manager_api_key                        = ""                                         # Stream Manager api key
-  azure_virtual_machine_password                = "Abc@1234"                                 # Virtual machine password which is to be used for created nodes of red5 pro.
+  # Example of imported HTTPS/SSL certificate configuration - please uncomment and provide your domain name, certificate and key paths
+  # https_ssl_certificate             = "imported"
+  # https_ssl_certificate_domain_name = "red5pro.example.com"             # Replace with your domain name
+  # https_ssl_certificate_cert_path   = "/PATH/TO/SSL/CERT/fullchain.pem" # Path to cert file or full chain file
+  # https_ssl_certificate_key_path    = "/PATH/TO/SSL/KEY/privkey.pem"    # Path to privkey file
+
+  # Red5 Pro autoscaling Node image configuration
+  node_image_create                   = true                              # Default: true for Autoscaling and Cluster, true - create new Node image, false - not create new Node image
+  node_machine_size                   = "Standard_F2s_v2"                 # Machine size for Origin node image
+  node_machine_storage_type           = "Premium_LRS"                     # Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  node_image_volume_size              = 30                                # Origin node volume size
   
-  # Load Balancer Configuraion
-  ssl_certificate_pfx_path                      = ""                                       # Path of the PFX format SSL certificate used for the Load Balancer
-  ssl_certificate_pfx_password                  = ""                                       # Certificate password used while converting to PFX
-
-  # Red5 Pro autoscale Origin node image configuration
-  origin_image_create                                      = true                          # Default: true for Autoscaling and Cluster, true - create new Origin node image, false - not create new Origin node image
-  origin_machine_size                                      = "Standard_F2s_v2"             # Instance type for Origin node image
-  origin_machine_storage_type                              = "Premium_LRS"                 # Origin machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS  
-  origin_image_red5pro_inspector_enable                    = false                         # true - enable Red5 Pro server inspector, false - disable Red5 Pro server inspector (https://www.red5pro.com/docs/troubleshooting/inspector/overview/)
-  origin_image_red5pro_restreamer_enable                   = false                         # true - enable Red5 Pro server restreamer, false - disable Red5 Pro server restreamer (https://www.red5pro.com/docs/special/restreamer/overview/)
-  origin_image_red5pro_socialpusher_enable                 = false                         # true - enable Red5 Pro server socialpusher, false - disable Red5 Pro server socialpusher (https://www.red5pro.com/docs/special/social-media-plugin/overview/)
-  origin_image_red5pro_suppressor_enable                   = false                         # true - enable Red5 Pro server suppressor, false - disable Red5 Pro server suppressor
-  origin_image_red5pro_hls_enable                          = false                         # true - enable Red5 Pro server HLS, false - disable Red5 Pro server HLS (https://www.red5pro.com/docs/protocols/hls-plugin/hls-vod/)
-  origin_image_red5pro_round_trip_auth_enable              = false                         # true - enable Red5 Pro server round trip authentication, false - disable Red5 Pro server round trip authentication (https://www.red5pro.com/docs/special/round-trip-auth/overview/)
-  origin_image_red5pro_round_trip_auth_host                = "round-trip-auth.example.com" # Round trip authentication server host
-  origin_image_red5pro_round_trip_auth_port                = 3000                          # Round trip authentication server port
-  origin_image_red5pro_round_trip_auth_protocol            = "http"                        # Round trip authentication server protocol
-  origin_image_red5pro_round_trip_auth_endpoint_validate   = "/validateCredentials"        # Round trip authentication server endpoint for validate
-  origin_image_red5pro_round_trip_auth_endpoint_invalidate = "/invalidateCredentials"      # Round trip authentication server endpoint for invalidate
-  origin_red5pro_cloudstorage_enable                   = false                             # Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)
-  origin_red5pro_azure_storage_account_name            = ""                                # Red5 Pro server cloud storage - Azure storage account name
-  origin_red5pro_azure_storage_account_key             = ""                                # Red5 Pro server cloud storage - Azure storage account key
-  origin_red5pro_azure_storage_container_name          = ""                                # Red5 Pro server cloud storage - Azure storage container name
-  origin_red5pro_cloudstorage_postprocessor_enable     = false                             # Red5 Pro server cloud storage - enable/disable Red5 Pro server postprocessor (https://www.red5.net/docs/special/cloudstorage-plugin/server-configuration/) 
-
-  # Red5 Pro autoscaling Node group - (Optional)
-  node_group_create                   = true                                               # Linux or Mac OS only. true - create new Node group, false - not create new Node group
-  node_group_name                     = "example-node-group"                               # Node group name
-  # Origin node configuration
-  node_group_origins_min               = 1                                                 # Number of minimum Origins
-  node_group_origins_max               = 20                                                # Number of maximum Origins
-  node_group_origins_machine_size     = "Standard_F2s_v2"                                  # Origins azure instance
-  node_group_origins_capacity         = 30                                                 # Connections capacity for Origins
-  # Edge node configuration
-  node_group_edges_min                 = 1                                                 # Number of minimum Edges
-  node_group_edges_max                 = 40                                                # Number of maximum Edges
-  node_group_edges_machine_size       = "Standard_F2s_v2"                                  # Edges azure instance
-  node_group_edges_capacity           = 300                                                # Connections capacity for Edges
-  # Transcoder node configuration
-  node_group_transcoders_min           = 0                                                 # Number of minimum Transcoders
-  node_group_transcoders_max           = 20                                                # Number of maximum Transcoders
-  node_group_transcoders_machine_size = "Standard_F2s_v2"                                  # Transcodersazure instance
-  node_group_transcoders_capacity     = 30                                                 # Connections capacity for Transcoders
-  # Relay node configuration
-  node_group_relays_min                = 0                                                 # Number of minimum Relays
-  node_group_relays_max                = 20                                                # Number of maximum Relays
-  node_group_relays_machine_size      = "Standard_F2s_v2"                                  # Relays azure instance
-  node_group_relays_capacity          = 30                                                 # Connections capacity for Relays
-
+  # Extra configuration for Red5 Pro autoscaling nodes
+  # Webhooks configuration - (Optional) https://www.red5.net/docs/special/webhooks/overview/
+  node_config_webhooks = {
+    enable           = false,
+    target_nodes     = ["origin", "edge", "transcoder"],
+    webhook_endpoint = "https://test.webhook.app/api/v1/broadcast/webhook"
+  }
+  # Round trip authentication configuration - (Optional) https://www.red5.net/docs/special/authplugin/simple-auth/
+  node_config_round_trip_auth = {
+    enable                   = false,
+    target_nodes             = ["origin", "edge", "transcoder"],
+    auth_host                = "round-trip-auth.example.com",
+    auth_port                = 443,
+    auth_protocol            = "https://",
+    auth_endpoint_validate   = "/validateCredentials",
+    auth_endpoint_invalidate = "/invalidateCredentials"
+  }
+  # Restreamer configuration - (Optional) https://www.red5.net/docs/special/restreamer/overview/
+  node_config_restreamer = {
+    enable               = false,
+    target_nodes         = ["origin", "transcoder"],
+    restreamer_tsingest  = true,
+    restreamer_ipcam     = true,
+    restreamer_whip      = true,
+    restreamer_srtingest = true
+  }
+  # Social Pusher configuration - (Optional) https://www.red5.net/docs/development/social-media-plugin/rest-api/
+  node_config_social_pusher = {
+    enable       = false,
+    target_nodes = ["origin", "edge", "transcoder"],
+  }
+ 
+  # Red5 Pro autoscaling Node group
+  node_group_create                       = true             # Linux or Mac OS only. true - create new Node group, false - not create new Node group
+  node_group_origins_min                  = 1                # Number of minimum Origins
+  node_group_origins_max                  = 20               # Number of maximum Origins
+  node_group_origins_machine_size        = "Standard_F2s_v2" # Machine size for Origins
+  node_group_origins_volume_size          = 30               # Volume size for Origins
+  node_group_origins_connection_limit     = 20               # Maximum number of publishers to the origin server
+  node_group_edges_min                    = 1                # Number of minimum Edges
+  node_group_edges_max                    = 20               # Number of maximum Edges
+  node_group_edges_machine_size          = "Standard_F2s_v2" # Machine size for Edges
+  node_group_edges_volume_size            = 30               # Volume size for Edges
+  node_group_edges_connection_limit       = 200              # Maximum number of subscribers to the edge server
+  node_group_transcoders_min              = 0                # Number of minimum Transcoders
+  node_group_transcoders_max              = 20               # Number of maximum Transcoders
+  node_group_transcoders_machine_size    = "Standard_F2s_v2" # Machine size for Transcoders
+  node_group_transcoders_volume_size      = 30               # Volume size for Transcoders
+  node_group_transcoders_connection_limit = 20               # Maximum number of publishers to the transcoder server
+  node_group_relays_min                   = 0                # Number of minimum Relays
+  node_group_relays_max                   = 20               # Number of maximum Relays
+  node_group_relays_machine_size         = "Standard_F2s_v2" # Machine size for Relays
+  node_group_relays_volume_size           = 30               # Volume size for Relays
 }
 
 output "module_output" {
-  sensitive = true
-  value = module.red5pro_autoscaling
+  value = module.red5pro_autoscale
 }
 ```
 
----
-
-**NOTES**
-
-* To activate HTTPS/SSL you need to add DNS A record for Elastic IP (single/cluster) or CNAME record for Load Balancer DNS name (autoscaling)
-
----
-
+> - WebRTC broadcast does not work in WEB browsers without an HTTPS (SSL) certificate.
+> - To activate HTTPS/SSL, you need to add a DNS A record for the public IP address of your Red5 Pro server or Stream Manager 2.0.

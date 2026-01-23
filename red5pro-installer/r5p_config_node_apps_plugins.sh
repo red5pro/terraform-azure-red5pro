@@ -3,13 +3,13 @@
 # 
 ############################################################################################################
 
-# NODE_API_ENABLE=true
-# NODE_API_KEY
 # NODE_INSPECTOR_ENABLE=true
 # NODE_RESTREAMER_ENABLE=true
 # NODE_SOCIALPUSHER_ENABLE=true
 # NODE_SUPPRESSOR_ENABLE=true
 # NODE_HLS_ENABLE=true
+# NODE_HLS_OUTPUT_FORMAT=TS     #(TS,FMP4,SMP4)
+# NODE_HLS_DVR_PLAYLIST=true
 
 # NODE_WEBHOOKS_ENABLE=true
 # NODE_WEBHOOKS_ENDPOINT="https://test.webhook.app/api/v1/broadcast/webhook"
@@ -59,27 +59,6 @@ config_node_apps_plugins(){
         rm -r $RED5_HOME/webapps/videobandwidth
     fi
 
-    if [[ "$NODE_API_ENABLE" == "true" ]]; then
-        log_i "Red5Pro WEBAPP API - enable"
-
-        if [ -z "$NODE_API_KEY" ]; then
-            log_e "Parameter NODE_API_KEY is empty. EXIT."
-            exit 1
-        fi
-        local token_pattern='security.accessToken='
-        local debug_logaccess_pattern='debug.logaccess=false'
-        local token_new="security.accessToken=${NODE_API_KEY}"
-        local debug_logaccess='debug.logaccess=true'
-        sed -i -e "s|$token_pattern|$token_new|" -e "s|$debug_logaccess_pattern|$debug_logaccess|" "$RED5_HOME/webapps/api/WEB-INF/red5-web.properties"
-        echo " " >> $RED5_HOME/webapps/api/WEB-INF/security/hosts.txt
-        echo "*" >> $RED5_HOME/webapps/api/WEB-INF/security/hosts.txt
-    else
-        log_d "Red5Pro WEBAPP API - disable"
-        if [ -d "$RED5_HOME/webapps/api" ]; then
-            rm -r $RED5_HOME/webapps/api
-        fi
-    fi
-
     ### Inspector
     if [[ "$NODE_INSPECTOR_ENABLE" == "true" ]]; then
         log_i "Red5Pro WEBAPP INSPECTOR - enable"
@@ -94,54 +73,20 @@ config_node_apps_plugins(){
     fi
     ### Red5Pro HLS
     if [[ "$NODE_HLS_ENABLE" == "true" ]]; then
-        log_i "Red5Pro HLS - enable"
+        log_i "Red5Pro HLS - enable. Output format: $NODE_HLS_OUTPUT_FORMAT, DVR playlist: $NODE_HLS_DVR_PLAYLIST"
+
+        hls_output_format='<property name="outputFormat" value="TS"/>'
+        hls_output_format_new='<property name="outputFormat" value="'$NODE_HLS_OUTPUT_FORMAT'"/>'
+
+        hls_dvr_playlist='<property name="dvrPlaylist" value="false"/>'
+        hls_dvr_playlist_new='<property name="dvrPlaylist" value="'$NODE_HLS_DVR_PLAYLIST'"/>'
+        sed -i -e "s|$hls_output_format|$hls_output_format_new|" -e "s|$hls_dvr_playlist|$hls_dvr_playlist_new|" "$RED5_HOME/conf/hlsconfig.xml"
     else
         log_d "Red5Pro HLS - disable"
         if ls $RED5_HOME/plugins/red5pro-mpegts-plugin* >/dev/null 2>&1; then
             rm $RED5_HOME/plugins/red5pro-mpegts-plugin*
         fi
     fi
-    ### Red5Pro Restreamer
-    if [[ "$NODE_RESTREAMER_ENABLE" == "true" ]]; then
-        log_i "Red5Pro Restreamer - enable"
-        log_i "HERE need to add Restreamer configuration!!!"
-    else
-        log_d "Red5Pro Restreamer - disable"
-        if ls $RED5_HOME/plugins/red5pro-restreamer-plugin* >/dev/null 2>&1; then
-            rm $RED5_HOME/plugins/red5pro-restreamer-plugin*
-        fi
-    fi
-    ### Red5Pro Socialpusher
-    if [[ "$NODE_SOCIALPUSHER_ENABLE" == "true" ]]; then
-        log_i "Red5Pro Socialpusher - enable"
-        log_i "HERE need to add Socialpusher configuration!!!"
-    else
-        log_d "Red5Pro Socialpusher - disable"
-        if ls $RED5_HOME/plugins/red5pro-socialpusher-plugin* >/dev/null 2>&1; then
-            rm $RED5_HOME/plugins/red5pro-socialpusher-plugin*
-        fi
-    fi
-    ### Red5Pro Client-suppressor
-    if [[ "$NODE_SUPPRESSOR_ENABLE" == "true" ]]; then
-        log_i "Red5Pro client-suppressor - enable"
-        log_i "HERE need to add Client-suppressor configuration!!!"
-    else
-        log_d "Red5Pro client-suppressor - disable"
-        if ls $RED5_HOME/plugins/red5pro-client-suppressor* >/dev/null 2>&1; then
-            rm $RED5_HOME/plugins/red5pro-client-suppressor*
-        fi
-    fi
-    ### Red5Pro Webhooks
-    if [[ "$NODE_WEBHOOKS_ENABLE" == "true" ]]; then
-        log_i "Red5Pro Webhooks - enable"
-        if [ -z "$NODE_WEBHOOKS_ENDPOINT" ]; then
-            log_e "Parameter NODE_WEBHOOKS_ENDPOINT is empty. EXIT."
-            exit 1
-        fi
-        echo "webhooks.endpoint=$NODE_WEBHOOKS_ENDPOINT" >> $RED5_HOME/webapps/live/WEB-INF/red5-web.properties
-    fi
-
-    ### VOD via Cloud Storage
     if [[ "$NODE_CLOUDSTORAGE_ENABLE" == "true" ]]; then
         log_i "Red5Pro Azure Cloudstorage plugin - enable"
         if [ -z "$NODE_CLOUDSTORAGE_AZURE_STORAGE_ACCOUNT_NAME" ]; then
@@ -190,7 +135,65 @@ config_node_apps_plugins(){
     else
         log_d "Red5Pro Azure Cloudstorage plugin - disable"
     fi
+    ### Red5Pro Stream Auto Record
+    if [[ "$NODE_STREAM_AUTO_RECORD_ENABLE" == "true" ]]; then
+        log_i "Red5Pro Broadcas Stream Auto Record - enable"
 
+        stream_auto_record="broadcaststream.auto.record=.*"
+        stream_auto_record_new="broadcaststream.auto.record=true"
+        sed -i -e "s|$stream_auto_record|$stream_auto_record_new|" "$RED5_HOME/conf/red5.properties"
+    else
+        log_d "Red5Pro Broadcas Stream Auto Record - disable"
+    fi
+    ### Red5Pro Restreamer
+    if [[ "$NODE_RESTREAMER_ENABLE" == "true" ]]; then
+        log_i "Red5Pro Restreamer - enable"
+        
+        # In new version of Red5Pro 13.0.0 and above, it is enabled by default in the red5-web.xml
+        # log_i "Enable Restreamer Servlet in $RED5_HOME/webapps/live/WEB-INF/web.xml"
+        # restreamer_servlet="<servlet>\n<servlet-name>RestreamerServlet</servlet-name>\n<servlet-class>com.red5pro.restreamer.servlet.RestreamerServlet</servlet-class>\n</servlet>\n<servlet-mapping>\n<servlet-name>RestreamerServlet</servlet-name>\n<url-pattern>/restream</url-pattern>\n</servlet-mapping>"
+        # sed -i "/<\/web-app>/i $restreamer_servlet"  "$RED5_HOME/webapps/live/WEB-INF/web.xml"
+
+        log_i "Set enable.srtingest=true in $RED5_HOME/conf/restreamer-plugin.properties"
+        enable_srtingest="enable.srtingest=.*"
+        enable_srtingest_new="enable.srtingest=true"
+        sed -i -e "s|$enable_srtingest|$enable_srtingest_new|" "$RED5_HOME/conf/restreamer-plugin.properties"
+    else
+        log_d "Red5Pro Restreamer - disable"
+        if ls $RED5_HOME/plugins/red5pro-restreamer-plugin* >/dev/null 2>&1; then
+            rm $RED5_HOME/plugins/red5pro-restreamer-plugin*
+        fi
+    fi
+    ### Red5Pro Socialpusher
+    if [[ "$NODE_SOCIALPUSHER_ENABLE" == "true" ]]; then
+        log_i "Red5Pro Socialpusher - enable"
+        log_i "HERE need to add Socialpusher configuration!!!"
+    else
+        log_d "Red5Pro Socialpusher - disable"
+        if ls $RED5_HOME/plugins/red5pro-socialpusher-plugin* >/dev/null 2>&1; then
+            rm $RED5_HOME/plugins/red5pro-socialpusher-plugin*
+        fi
+    fi
+    ### Red5Pro Client-suppressor
+    if [[ "$NODE_SUPPRESSOR_ENABLE" == "true" ]]; then
+        log_i "Red5Pro client-suppressor - enable"
+        log_i "HERE need to add Client-suppressor configuration!!!"
+    else
+        log_d "Red5Pro client-suppressor - disable"
+        if ls $RED5_HOME/plugins/red5pro-client-suppressor* >/dev/null 2>&1; then
+            rm $RED5_HOME/plugins/red5pro-client-suppressor*
+        fi
+    fi
+    ### Red5Pro Webhooks
+    if [[ "$NODE_WEBHOOKS_ENABLE" == "true" ]]; then
+        log_i "Red5Pro Webhooks - enable"
+        if [ -z "$NODE_WEBHOOKS_ENDPOINT" ]; then
+            log_e "Parameter NODE_WEBHOOKS_ENDPOINT is empty. EXIT."
+            exit 1
+        fi
+        echo "" >> $RED5_HOME/webapps/live/WEB-INF/red5-web.properties
+        echo "webhooks.endpoint=$NODE_WEBHOOKS_ENDPOINT" >> $RED5_HOME/webapps/live/WEB-INF/red5-web.properties
+    fi
     ### Red5Pro Round-trip-auth
     if [[ "$NODE_ROUND_TRIP_AUTH_ENABLE" == "true" ]]; then
         log_i "Red5Pro Round-trip-auth - enable"
@@ -217,6 +220,7 @@ config_node_apps_plugins(){
 
         log_i "Configuration Live App red5-web.properties with MOCK Round trip server ..."
         {
+            echo ""
             echo "server.validateCredentialsEndPoint=${NODE_ROUND_TRIP_AUTH_ENDPOINT_VALIDATE}"
             echo "server.invalidateCredentialsEndPoint=${NODE_ROUND_TRIP_AUTH_ENDPOINT_INVALIDATE}"
             echo "server.host=${NODE_ROUND_TRIP_AUTH_HOST}"
