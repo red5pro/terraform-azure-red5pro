@@ -633,3 +633,23 @@ variable "kafka_standalone_volume_size" {
     error_message = "The kafka_standalone_volume_size value must be a valid! Minimum 30"
   }
 }
+variable "stream_manager_container_registry" {
+  description = "value to set the container registry for Stream Manager 2.0 (Optional) Example: container-registry/my-repo"
+  type        = string
+  default     = ""
+}
+variable "stream_manager_container_registry_user" {
+  description = "value to set the user name for Stream Manager 2.0 container registry (Optional)"
+  type        = string
+  default     = ""
+}
+variable "stream_manager_container_registry_password" {
+  description = "value to set the user password for Stream Manager 2.0 container registry (Optional)"
+  type        = string
+  default     = ""
+}
+variable "stream_manager_testbed_version" {
+  description = "value to set the version for Stream Manager 2.0 Testbed (Optional) - if not set it will use version from stream_manager_version variable"
+  type        = string
+  default     = ""
+}
