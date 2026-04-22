@@ -23,6 +23,7 @@ locals {
   node_image_name               = var.node_image_create ? azurerm_image.node_image[0].name : null
   security_group_name_kafka     = local.autoscale ? azurerm_network_security_group.kafka_service_network_security_group[0].name : local.cluster && var.kafka_standalone_instance_create ? azurerm_network_security_group.kafka_service_network_security_group[0].name : null
   security_group_name_sm        = local.cluster_or_autoscale ? azurerm_network_security_group.stream_manager_network_security_group[0].name : null
+  red5pro_node_image_name       = local.cluster_or_autoscale && var.node_image_create ? "${var.name}-node-image-${formatdate("DDMMMYY-hhmm", timestamp())}" : ""
 }
 
 ################################################################################
@@ -544,7 +545,12 @@ resource "null_resource" "red5pro_sm_configuration" {
       "echo 'KAFKA_REPLICAS=${local.kafka_on_sm_replicas}' | sudo tee -a /usr/local/stream-manager/.env",
       "echo 'KAFKA_IP=${local.kafka_ip}' | sudo tee -a /usr/local/stream-manager/.env",
       "echo 'TRAEFIK_IP=${local.stream_manager_ip}' | sudo tee -a /usr/local/stream-manager/.env", # Use only in Cluster deployment
-      "echo 'TRAEFIK_HOST=${var.https_ssl_certificate_domain_name}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'TRAEFIK_HOST=${var.stream_manager_public_hostname}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'AS_ADMIN_UI_VERSION=${var.stream_manager_admin_ui_version}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'AS_ADMIN_UI_MAIN_REGION=${var.azure_region}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'AS_ADMIN_UI_NODE_IMAGE_NAME=${local.red5pro_node_image_name}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'AS_ADMIN_UI_AZURE_VPC=${local.vpc_name}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'AS_ADMIN_UI_AZURE_SECURITY_GROUP=${local.security_group_name_node}' | sudo tee -a /usr/local/stream-manager/.env",
       "export SM_SSL='${local.stream_manager_ssl}'",
       "export SM_STANDALONE='${local.stream_manager_standalone}'",
       "export SM_SSL_DOMAIN='${var.https_ssl_certificate_domain_name}'",
@@ -564,6 +570,12 @@ resource "null_resource" "red5pro_sm_configuration" {
 
   }
   depends_on = [tls_cert_request.kafka_server_csr, azurerm_linux_virtual_machine.red5_stream_manager, null_resource.red5pro_kafka]
+  lifecycle {
+    precondition {
+      condition     = var.stream_manager_public_hostname != ""
+      error_message = "ERROR! Value in variable stream_manager_public_hostname must be a valid FQDN! Example: sm.example.com"
+    }
+  }
 }
 
 resource "azapi_resource_action" "stop_sm_vm" {
@@ -1014,7 +1026,7 @@ resource "azurerm_image" "stream_manager_image" {
 # Node Image
 resource "azurerm_image" "node_image" {
   count                     = local.cluster_or_autoscale && var.node_image_create ? 1 : 0
-  name                      = "${var.name}-node-image-${formatdate("DDMMMYY-hhmm", timestamp())}-${var.azure_region}"
+  name                      = local.red5pro_node_image_name
   location                  = var.azure_region
   resource_group_name       = local.az_resource_group_name
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_node[0].id
