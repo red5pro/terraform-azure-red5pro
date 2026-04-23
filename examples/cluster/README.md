@@ -2,6 +2,8 @@
 
 In the following example, Terraform module will automates the infrastructure provisioning of the Stream Manager 2.0 cluster with Red5 Pro (SM2.0) Autoscaling node group (origins, edges, transcoders, relays)
 
+**`stream_manager_public_hostname`:** Set this to the DNS name clients use for Stream Manager (e.g. `sm.example.com`). It sets Traefik’s host, the admin UI API base, and outputs such as `stream_manager_url_https`. Use a concrete FQDN, not a wildcard. For TLS, `https_ssl_certificate_domain_name` may still be a wildcard (e.g. `*.example.com`) if the certificate covers this hostname.
+
 ## Terraform Deployed Resources (cluster)
 
 - Resource Group (You can use existing resource group)
@@ -96,18 +98,19 @@ module "red5pro_cluster" {
   stream_manager_spatial_user           = "example_spatial_user"           # Stream Manager 2.0 spatial user name
   stream_manager_spatial_password       = "example_spatial_password"       # Stream Manager 2.0 spatial password
   stream_manager_version                = "latest"                         # Stream Manager 2.0 docker images version (latest, 14.1.0, 14.1.1, etc.) - https://hub.docker.com/r/red5pro/as-admin/tags
+  stream_manager_public_hostname        = "sm.example.com"                 # Required: public FQDN for Traefik, admin UI, and HTTPS URLs (not a wildcard). Point DNS A record at the Stream Manager IP from outputs.
 
   # Stream Manager 2.0 server HTTPS (SSL) certificate configuration
   https_ssl_certificate                 = "none"                           # none - do not use HTTPS/SSL certificate, letsencrypt - create new Let's Encrypt HTTPS/SSL certificate, imported - use existing HTTPS/SSL certificate
 
   # Example of Let's Encrypt HTTPS/SSL certificate configuration - please uncomment and provide your domain name and email
   # https_ssl_certificate               = "letsencrypt"
-  # https_ssl_certificate_domain_name   = "red5pro.example.com"            # Replace with your domain name
+  # https_ssl_certificate_domain_name   = "sm.example.com"                 # Cert domain name (may be *.example.com); must cover stream_manager_public_hostname
   # https_ssl_certificate_email         = "email@example.com"              # Replace with your email
 
   # Example of imported HTTPS/SSL certificate configuration - please uncomment and provide your domain name, certificate and key paths
   # https_ssl_certificate               = "imported"
-  # https_ssl_certificate_domain_name   = "red5pro.example.com"             # Replace with your domain name
+  # https_ssl_certificate_domain_name   = "red5pro.example.com"             # Cert domain name (may be *.example.com); must cover stream_manager_public_hostname
   # https_ssl_certificate_cert_path     = "/PATH/TO/SSL/CERT/fullchain.pem" # Path to cert file or full chain file
   # https_ssl_certificate_key_path      = "/PATH/TO/SSL/KEY/privkey.pem"    # Path to privkey file
 
