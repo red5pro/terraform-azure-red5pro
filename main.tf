@@ -23,7 +23,7 @@ locals {
   node_image_name               = var.node_image_create ? azurerm_image.node_image[0].name : null
   security_group_name_kafka     = local.autoscale ? azurerm_network_security_group.kafka_service_network_security_group[0].name : local.cluster && var.kafka_standalone_instance_create ? azurerm_network_security_group.kafka_service_network_security_group[0].name : null
   security_group_name_sm        = local.cluster_or_autoscale ? azurerm_network_security_group.stream_manager_network_security_group[0].name : null
-  red5pro_node_image_name       = local.cluster_or_autoscale && var.node_image_create ? "${var.name}-node-image-${formatdate("DDMMMYY-hhmm", timestamp())}" : ""
+  red5pro_node_image_name       = local.cluster_or_autoscale && var.node_image_create ? "${var.name}-node-image-${random_id.node_image_suffix[0].hex}" : ""
 }
 
 ################################################################################
@@ -500,6 +500,8 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
     R5AS_PROXY_PASS=${var.stream_manager_proxy_password}
     R5AS_SPATIAL_USER=${var.stream_manager_spatial_user}
     R5AS_SPATIAL_PASS=${var.stream_manager_spatial_password}
+    R5AS_CONFERENCE_SECRET=${random_id.r5as_conference_secret[0].hex}
+    R5AS_NODE_API_ACCESS_TOKEN=${var.red5pro_api_key}
     CONTAINER_REGISTRY=${var.stream_manager_container_registry}
     AS_VERSION=${var.stream_manager_version}
     AS_TESTBED_VERSION=${var.stream_manager_testbed_version}
@@ -1008,6 +1010,17 @@ resource "azapi_resource_action" "generalize_node_vm" {
 ####################################################################################################
 # Red5 Pro Autoscaling create images - StreamManager/Node
 ####################################################################################################
+
+resource "random_id" "r5as_conference_secret" {
+  count       = local.cluster_or_autoscale ? 1 : 0
+  byte_length = 16
+}
+
+resource "random_id" "node_image_suffix" {
+  count       = local.cluster_or_autoscale && var.node_image_create ? 1 : 0
+  byte_length = 4
+}
+
 # Stream Manager Image
 resource "azurerm_image" "stream_manager_image" {
   count                     = local.autoscale ? 1 : 0

@@ -77,3 +77,8 @@ output "standalone_red5pro_server_security_group_name" {
   description = "Security group name Standalone Red5 Pro server"
   value       = try(azurerm_network_security_group.red5_network_standalone_security_group[0].name, null)
 }
+
+output "r5as_conference_secret" {
+  description = "Auto-generated R5AS Conference secret (hex)"
+  value       = try(random_id.r5as_conference_secret[0].hex, "")
+}
