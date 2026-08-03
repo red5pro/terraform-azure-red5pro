@@ -4,11 +4,11 @@
 terraform {
   required_providers {
     azurerm = {
-      source = "hashicorp/azurerm"
+      source  = "hashicorp/azurerm"
       version = ">=4.57.0"
     }
     azapi = {
-      source = "Azure/azapi"
+      source  = "Azure/azapi"
       version = ">=2.8.0"
     }
   }
@@ -30,36 +30,36 @@ provider "azapi" {
 }
 
 module "red5pro_standalone" {
-  source                                   = "../../"
-  azure_region                             = "eastus"                                # Azure region where resources will create eg: eastus
+  source       = "../../"
+  azure_region = "eastus" # Azure region where resources will create eg: eastus
 
-  azure_resource_group_use_existing        = false                                   # false - create a new resource group, true -use existing resource group
-  existing_azure_resource_group_name       = "example-group-name"                    # If azure_resource_group_use_existing = true, provide existing resource group name where new resources will be created
+  azure_resource_group_use_existing  = false                # false - create a new resource group, true -use existing resource group
+  existing_azure_resource_group_name = "example-group-name" # If azure_resource_group_use_existing = true, provide existing resource group name where new resources will be created
 
-  ubuntu_version                           = "22.04"                                 # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
-  type                                     = "standalone"                            # Deployment type: standalone, cluster, autoscale
-  name                                     = "red5pro-standalone"                    # Name to be used on all the resources as identifier
-  path_to_red5pro_build                    = "./red5pro-server-0.0.0.0-release.zip"  # Absolute path or relative path to Red5 Pro server ZIP file
+  ubuntu_version        = "22.04"                                # The version of ubuntu which is used to create Instance, it can either be 20.04 or 22.04
+  type                  = "standalone"                           # Deployment type: standalone, cluster, autoscale
+  name                  = "red5pro-standalone"                   # Name to be used on all the resources as identifier
+  path_to_red5pro_build = "./red5pro-server-0.0.0.0-release.zip" # Absolute path or relative path to Red5 Pro server ZIP file
 
   # SSH key configuration
-  ssh_key_use_existing                     = false                                   # true - Use existing SSH key, false - create new SSH keys
-  existing_public_ssh_key_path             = "./example-public.pub"                  # Path to existing SSH public key
-  existing_private_ssh_key_path            = "./example-private.pem"                 # Path to existing SSH private key
+  ssh_key_use_existing          = false                   # true - Use existing SSH key, false - create new SSH keys
+  existing_public_ssh_key_path  = "./example-public.pub"  # Path to existing SSH public key
+  existing_private_ssh_key_path = "./example-private.pem" # Path to existing SSH private key
 
   # VPC configuration
-  vpc_cidr_block                           = "10.5.0.0/16"                           # VPC CIDR value for creating a new vpc in Azure
+  vpc_cidr_block = "10.5.0.0/16" # VPC CIDR value for creating a new vpc in Azure
 
   # standalone Red5 Pro server Instance configuration
-  standalone_virtual_machine_size          = "Standard_F2s_v2"                       # Machine size for Red5 Pro server
-  standalone_virtual_machine_storage_type  = "Premium_LRS"                           # Storage type for Red5 Pro server (Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS)
+  standalone_virtual_machine_size         = "Standard_F2s_v2" # Machine size for Red5 Pro server
+  standalone_virtual_machine_storage_type = "Premium_LRS"     # Storage type for Red5 Pro server (Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS)
 
   # Red5Pro general configuration
-  red5pro_license_key                      = "1111-2222-3333-4444"                   # Red5 Pro license key (https://account.red5.net/login)
-  red5pro_api_enable                       = true                                    # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5.net/docs/development/api/overview/)
-  red5pro_api_key                          = "example_key"                           # Red5 Pro server API key (https://www.red5.net/docs/development/api/overview/)
+  red5pro_license_key = "1111-2222-3333-4444" # Red5 Pro license key (https://account.red5.net/login)
+  red5pro_api_enable  = true                  # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5.net/docs/development/api/overview/)
+  red5pro_api_key     = "example_key"         # Red5 Pro server API key (https://www.red5.net/docs/development/api/overview/)
 
   # Standalone Red5 Pro server HTTPS (SSL) certificate configuration
-  https_ssl_certificate                    = "none"                                  # none - do not use HTTPS/SSL certificate, letsencrypt - create new Let's Encrypt HTTPS/SSL certificate, imported - use existing HTTPS/SSL certificate
+  https_ssl_certificate = "none" # none - do not use HTTPS/SSL certificate, letsencrypt - create new Let's Encrypt HTTPS/SSL certificate, imported - use existing HTTPS/SSL certificate
 
   # Example of Let's Encrypt HTTPS/SSL certificate configuration - please uncomment and provide your domain name and email
   # https_ssl_certificate                  = "letsencrypt"
@@ -71,7 +71,7 @@ module "red5pro_standalone" {
   # https_ssl_certificate_domain_name      = "red5pro.example.com"                   # FQDN on the certificate and in browser HTTPS URLs for this server
   # https_ssl_certificate_cert_path        = "/PATH/TO/SSL/CERT/fullchain.pem"       # Path to cert file or full chain file
   # https_ssl_certificate_key_path         = "/PATH/TO/SSL/KEY/privkey.pem"          # Path to privkey file
-  
+
   # Standalone Red5pro Server Configuration
   standalone_red5pro_inspector_enable                    = false                             # true - enable Red5 Pro server inspector, false - disable Red5 Pro server inspector (https://www.red5.net/docs/troubleshooting/inspector/overview/)
   standalone_red5pro_restreamer_enable                   = false                             # true - enable Red5 Pro server restreamer, false - disable Red5 Pro server restreamer (https://www.red5.net/docs/special/restreamer/overview/)

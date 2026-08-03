@@ -44,7 +44,7 @@ output "ssh_private_key_path" {
 }
 output "ssh_username" {
   description = "SSH username to connect with virtual machine"
-  value       = "ubuntu" 
+  value       = "ubuntu"
 }
 output "azure_region" {
   description = "Azure region where resources has been created"

@@ -1,8 +1,8 @@
 locals {
-  standalone                    = var.type == "standalone" ? true : false
-  cluster                       = var.type == "cluster" ? true : false
-  autoscale                     = var.type == "autoscale" ? true : false
-  cluster_or_autoscale          = local.cluster || local.autoscale ? true : false
+  standalone                    = var.type == "standalone"
+  cluster                       = var.type == "cluster"
+  autoscale                     = var.type == "autoscale"
+  cluster_or_autoscale          = local.cluster || local.autoscale
   ssh_private_key_path          = var.ssh_key_use_existing ? var.existing_private_ssh_key_path : local_file.red5pro_ssh_key_pem[0].filename
   az_resource_group_name        = var.azure_resource_group_use_existing ? var.existing_azure_resource_group_name : azurerm_resource_group.az_resource_group[0].name
   public_ssh_key                = var.ssh_key_use_existing ? file(var.existing_public_ssh_key_path) : tls_private_key.red5pro_ssh_key[0].public_key_openssh
@@ -31,23 +31,23 @@ locals {
 ################################################################################
 # SSH key pair generation
 resource "tls_private_key" "red5pro_ssh_key" {
-  count               = var.ssh_key_use_existing ? 0 : 1
-  algorithm           = "RSA"
-  rsa_bits            = 4096
+  count     = var.ssh_key_use_existing ? 0 : 1
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
 # Save SSH key pair files to local folder
 resource "local_file" "red5pro_ssh_key_pem" {
-  count               = var.ssh_key_use_existing ? 0 : 1
-  filename            = "./${var.name}-ssh-key.pem"
-  content             = tls_private_key.red5pro_ssh_key[0].private_key_pem
-  file_permission     = "0400"
+  count           = var.ssh_key_use_existing ? 0 : 1
+  filename        = "./${var.name}-ssh-key.pem"
+  content         = tls_private_key.red5pro_ssh_key[0].private_key_pem
+  file_permission = "0400"
 }
 
 resource "local_file" "red5pro_ssh_key_pub" {
-  count               = var.ssh_key_use_existing ? 0 : 1
-  filename            = "./${var.name}-ssh-key.pub"
-  content             = tls_private_key.red5pro_ssh_key[0].public_key_openssh
+  count    = var.ssh_key_use_existing ? 0 : 1
+  filename = "./${var.name}-ssh-key.pub"
+  content  = tls_private_key.red5pro_ssh_key[0].public_key_openssh
 }
 
 resource "azurerm_ssh_public_key" "red5pro_ssh" {
@@ -63,9 +63,9 @@ resource "azurerm_ssh_public_key" "red5pro_ssh" {
 ################################################################################
 # Create a new resource group in azure account
 resource "azurerm_resource_group" "az_resource_group" {
-  count               = var.azure_resource_group_use_existing ? 0 : 1
-  name                = "${var.name}-rg"
-  location            = var.azure_region
+  count    = var.azure_resource_group_use_existing ? 0 : 1
+  name     = "${var.name}-rg"
+  location = var.azure_region
 }
 
 data "azurerm_resources" "existing_az_resource" {
@@ -339,20 +339,20 @@ resource "random_password" "ssl_password_red5pro_standalone" {
 }
 
 resource "azurerm_linux_virtual_machine" "red5_standalone" {
-  count               = local.standalone ? 1 : 0
-  name                = "${var.name}-standalone-vm-${var.azure_region}"
-  resource_group_name = local.az_resource_group_name
-  location            = var.azure_region
-  size                = var.standalone_virtual_machine_size
-  admin_username      = "ubuntu"
+  count                           = local.standalone ? 1 : 0
+  name                            = "${var.name}-standalone-vm-${var.azure_region}"
+  resource_group_name             = local.az_resource_group_name
+  location                        = var.azure_region
+  size                            = var.standalone_virtual_machine_size
+  admin_username                  = "ubuntu"
   disable_password_authentication = true
   network_interface_ids = [
     azurerm_network_interface.red5_standalone_network_interface[0].id,
   ]
 
   admin_ssh_key {
-    username          = "ubuntu"
-    public_key        = local.public_ssh_key
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
   }
 
   os_disk {
@@ -363,10 +363,10 @@ resource "azurerm_linux_virtual_machine" "red5_standalone" {
   }
 
   source_image_reference {
-    publisher        = "Canonical"
-    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
-    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
-    version          = "latest"
+    publisher = "Canonical"
+    offer     = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku       = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
+    version   = "latest"
   }
 
   provisioner "file" {
@@ -417,10 +417,10 @@ resource "azurerm_linux_virtual_machine" "red5_standalone" {
       "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_server_basic.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_config_node_apps_plugins.sh",
-       "sudo systemctl daemon-reload && sudo systemctl restart red5pro",
+      "sudo systemctl daemon-reload && sudo systemctl restart red5pro",
       "sudo mkdir -p /usr/local/red5pro/certs",
-      "echo '${try(file(var.https_ssl_certificate_cert_path), "")}' | sudo tee -a /usr/local/red5pro/certs/fullchain.pem",
-      "echo '${try(file(var.https_ssl_certificate_key_path), "")}' | sudo tee -a /usr/local/red5pro/certs/privkey.pem",
+      "echo '${try(file(var.https_ssl_certificate_cert_path), "")}' | sudo tee -a /usr/local/red5pro/certs/fullchain.pem >/dev/null",
+      "echo '${try(file(var.https_ssl_certificate_key_path), "")}' | sudo tee -a /usr/local/red5pro/certs/privkey.pem >/dev/null",
       "export SSL='${var.https_ssl_certificate}'",
       "export SSL_DOMAIN='${var.https_ssl_certificate_domain_name}'",
       "export SSL_MAIL='${var.https_ssl_certificate_email}'",
@@ -429,14 +429,8 @@ resource "azurerm_linux_virtual_machine" "red5_standalone" {
       "nohup sudo -E /home/ubuntu/red5pro-installer/r5p_ssl_check_install.sh >> /home/ubuntu/red5pro-installer/r5p_ssl_check_install.log &",
       "sleep 2"
     ]
-    connection {
-      host        = self.public_ip_address
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = local.private_ssh_key
-    }
   }
-  depends_on = [ azurerm_network_interface_security_group_association.red5_standalone_network_interface_security_association ]
+  depends_on = [azurerm_network_interface_security_group_association.red5_standalone_network_interface_security_association]
 }
 
 ################################################################################
@@ -450,7 +444,7 @@ resource "random_password" "r5as_auth_secret" {
 }
 
 resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
-  count               = local.cluster_or_autoscale ? 1 : 0 
+  count               = local.cluster_or_autoscale ? 1 : 0
   name                = "${var.name}-sm-vm-${var.azure_region}"
   resource_group_name = local.az_resource_group_name
   location            = var.azure_region
@@ -461,22 +455,22 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
   ]
 
   admin_ssh_key {
-    username          = "ubuntu"
-    public_key        = local.public_ssh_key
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
   }
 
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = var.stream_manager_machine_storage_type
     disk_size_gb         = var.stream_manager_volume_size
-    name                 = "${var.name}-sm-disk" 
+    name                 = "${var.name}-sm-disk"
   }
 
   source_image_reference {
-    publisher        = "Canonical"
-    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
-    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
-    version          = "latest"
+    publisher = "Canonical"
+    offer     = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku       = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
+    version   = "latest"
   }
 
   user_data = base64encode(<<-EOF
@@ -523,38 +517,44 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
 
 resource "null_resource" "red5pro_sm_configuration" {
   triggers = {
-    sm_id  = azurerm_linux_virtual_machine.red5_stream_manager[0].id
+    sm_id = azurerm_linux_virtual_machine.red5_stream_manager[0].id
   }
-  count    = local.cluster_or_autoscale ? 1 : 0
+  count = local.cluster_or_autoscale ? 1 : 0
+
+  connection {
+    host        = azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = local.private_ssh_key
+  }
 
   provisioner "file" {
     source      = "${abspath(path.module)}/red5pro-installer"
     destination = "/home/ubuntu"
-
-    connection {
-      host        = azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = local.private_ssh_key
-    }
   }
   provisioner "remote-exec" {
     inline = [
       "until sudo cloud-init status | grep 'done'; do echo 'waiting for cloud-init'; sleep 10; done",
-      "echo 'KAFKA_SSL_KEYSTORE_KEY=${local.kafka_ssl_keystore_key}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'KAFKA_SSL_TRUSTSTORE_CERTIFICATES=${local.kafka_ssl_truststore_cert}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'KAFKA_SSL_KEYSTORE_CERTIFICATE_CHAIN=${local.kafka_ssl_keystore_cert_chain}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'KAFKA_REPLICAS=${local.kafka_on_sm_replicas}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'KAFKA_IP=${local.kafka_ip}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'TRAEFIK_IP=${local.stream_manager_ip}' | sudo tee -a /usr/local/stream-manager/.env", # Use only in Cluster deployment
-      "echo 'TRAEFIK_HOST=${var.stream_manager_public_hostname}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'AS_ADMIN_UI_VERSION=${var.stream_manager_admin_ui_version}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'AS_ADMIN_UI_MAIN_REGION=${var.azure_region}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'AS_ADMIN_UI_NODE_IMAGE_NAME=${local.red5pro_node_image_name}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'AS_ADMIN_UI_AZURE_VPC=${local.vpc_name}' | sudo tee -a /usr/local/stream-manager/.env",
-      "echo 'AS_ADMIN_UI_AZURE_SECURITY_GROUP=${local.security_group_name_node}' | sudo tee -a /usr/local/stream-manager/.env",
+      "echo 'KAFKA_SSL_KEYSTORE_KEY=${local.kafka_ssl_keystore_key}' | sudo tee -a /usr/local/stream-manager/.env >/dev/null",
+      "echo 'KAFKA_SSL_TRUSTSTORE_CERTIFICATES=${local.kafka_ssl_truststore_cert}' | sudo tee -a /usr/local/stream-manager/.env >/dev/null",
+      "echo 'KAFKA_SSL_KEYSTORE_CERTIFICATE_CHAIN=${local.kafka_ssl_keystore_cert_chain}' | sudo tee -a /usr/local/stream-manager/.env >/dev/null",
+      <<-EOT
+      sudo tee -a /usr/local/stream-manager/.env <<'EOM'
+      KAFKA_REPLICAS=${local.kafka_on_sm_replicas}
+      KAFKA_IP=${local.kafka_ip}
+      TRAEFIK_IP=${local.stream_manager_ip}
+      TRAEFIK_HOST=${var.stream_manager_public_hostname}
+      AS_ADMIN_UI_VERSION=${var.stream_manager_version}
+      AS_ADMIN_UI_MAIN_REGION=${var.azure_region}
+      AS_ADMIN_UI_NODE_IMAGE_NAME=${local.red5pro_node_image_name}
+      AS_ADMIN_UI_AZURE_VPC=${local.vpc_name}
+      AS_ADMIN_UI_AZURE_SECURITY_GROUP=${local.security_group_name_node}
+      EOM
+      EOT
+      ,
       "export SM_SSL='${local.stream_manager_ssl}'",
       "export SM_STANDALONE='${local.stream_manager_standalone}'",
+      "export KAFKA_REPLICAS='${local.kafka_on_sm_replicas}'",
       "export SM_SSL_DOMAIN='${var.https_ssl_certificate_domain_name}'",
       "export CONTAINER_REGISTRY='${var.stream_manager_container_registry}'",
       "export CONTAINER_REGISTRY_USER='${var.stream_manager_container_registry_user}'",
@@ -563,13 +563,6 @@ resource "null_resource" "red5pro_sm_configuration" {
       "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_sm2_azure.sh",
     ]
-    connection {
-      host        = azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = local.private_ssh_key
-    }
-
   }
   depends_on = [tls_cert_request.kafka_server_csr, azurerm_linux_virtual_machine.red5_stream_manager, null_resource.red5pro_kafka]
   lifecycle {
@@ -596,7 +589,7 @@ resource "azapi_resource_action" "deallocate_sm_vm" {
   action      = "deallocate"
   method      = "POST"
 
-  depends_on  = [azapi_resource_action.stop_sm_vm]
+  depends_on = [azapi_resource_action.stop_sm_vm]
 }
 
 resource "azapi_resource_action" "generalize_sm_vm" {
@@ -606,7 +599,7 @@ resource "azapi_resource_action" "generalize_sm_vm" {
   action      = "generalize"
   method      = "POST"
 
-  depends_on  = [azapi_resource_action.deallocate_sm_vm]
+  depends_on = [azapi_resource_action.deallocate_sm_vm]
 }
 
 ################################################################################
@@ -709,7 +702,7 @@ resource "tls_locally_signed_cert" "kafka_server_cert" {
   cert_request_pem      = tls_cert_request.kafka_server_csr[0].cert_request_pem
   ca_private_key_pem    = tls_private_key.ca_private_key[0].private_key_pem
   ca_cert_pem           = tls_self_signed_cert.ca_cert[0].cert_pem
-  validity_period_hours = 1 * 365 * 24
+  validity_period_hours = 365 * 24
 
   allowed_uses = [
     "digital_signature",
@@ -733,39 +726,38 @@ resource "azurerm_linux_virtual_machine" "red5_kafka_service" {
   ]
 
   admin_ssh_key {
-    username          = "ubuntu"
-    public_key        = local.public_ssh_key
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
   }
 
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = var.kafka_service_machine_storage_type
     disk_size_gb         = var.kafka_standalone_volume_size
-    name                 = "${var.name}-kafka-disk" 
+    name                 = "${var.name}-kafka-disk"
   }
 
   source_image_reference {
-    publisher        = "Canonical"
-    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
-    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
-    version          = "latest"
+    publisher = "Canonical"
+    offer     = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku       = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
+    version   = "latest"
   }
 }
 
 resource "null_resource" "red5pro_kafka" {
   count = local.kafka_standalone_instance ? 1 : 0
 
+  connection {
+    host        = azurerm_linux_virtual_machine.red5_kafka_service[0].public_ip_address
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = local.private_ssh_key
+  }
+
   provisioner "file" {
     source      = "${abspath(path.module)}/red5pro-installer"
     destination = "/home/ubuntu"
-
-    connection {
-      host        = azurerm_linux_virtual_machine.red5_kafka_service[0].public_ip_address
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = local.private_ssh_key
-    }
-
   }
 
   provisioner "remote-exec" {
@@ -773,11 +765,11 @@ resource "null_resource" "red5pro_kafka" {
       "sudo iptables -F",
       "sudo netfilter-persistent save",
       "sudo cloud-init status --wait",
-      "echo 'ssl.keystore.key=${local.kafka_ssl_keystore_key}' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties",
-      "echo 'ssl.truststore.certificates=${local.kafka_ssl_truststore_cert}' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties",
-      "echo 'ssl.keystore.certificate.chain=${local.kafka_ssl_keystore_cert_chain}' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties",
-      "echo 'listener.name.broker.plain.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${nonsensitive(random_string.kafka_admin_username[0].result)}\" password=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_admin_username[0].result)}=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_client_username[0].result)}=\"${nonsensitive(random_id.kafka_client_password[0].id)}\";' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties",
-      "echo 'listener.name.controller.plain.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${nonsensitive(random_string.kafka_admin_username[0].result)}\" password=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_admin_username[0].result)}=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_client_username[0].result)}=\"${nonsensitive(random_id.kafka_client_password[0].id)}\";' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties",
+      "echo 'ssl.keystore.key=${local.kafka_ssl_keystore_key}' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties >/dev/null",
+      "echo 'ssl.truststore.certificates=${local.kafka_ssl_truststore_cert}' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties >/dev/null",
+      "echo 'ssl.keystore.certificate.chain=${local.kafka_ssl_keystore_cert_chain}' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties >/dev/null",
+      "echo 'listener.name.broker.plain.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${nonsensitive(random_string.kafka_admin_username[0].result)}\" password=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_admin_username[0].result)}=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_client_username[0].result)}=\"${nonsensitive(random_id.kafka_client_password[0].id)}\";' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties >/dev/null",
+      "echo 'listener.name.controller.plain.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"${nonsensitive(random_string.kafka_admin_username[0].result)}\" password=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_admin_username[0].result)}=\"${nonsensitive(random_id.kafka_admin_password[0].id)}\" user_${nonsensitive(random_string.kafka_client_username[0].result)}=\"${nonsensitive(random_id.kafka_client_password[0].id)}\";' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties >/dev/null",
       "echo 'advertised.listeners=BROKER://${local.kafka_ip}:9092' | sudo tee -a /home/ubuntu/red5pro-installer/server.properties",
       "export KAFKA_ARCHIVE_URL='${var.kafka_standalone_instance_arhive_url}'",
       "export KAFKA_CLUSTER_ID='${random_id.kafka_cluster_id[0].b64_std}'",
@@ -785,12 +777,6 @@ resource "null_resource" "red5pro_kafka" {
       "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_kafka_install.sh",
     ]
-    connection {
-      host        = azurerm_linux_virtual_machine.red5_kafka_service[0].public_ip_address
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = local.private_ssh_key
-    }
   }
   depends_on = [tls_cert_request.kafka_server_csr, azurerm_linux_virtual_machine.red5_kafka_service]
 }
@@ -840,7 +826,7 @@ resource "azurerm_lb_rule" "lb_http_rule" {
   protocol                       = "Tcp"
   frontend_port                  = 80
   backend_port                   = 80
-  backend_address_pool_ids       = [ azurerm_lb_backend_address_pool.lb_backend[0].id ]
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.lb_backend[0].id]
 }
 
 resource "azurerm_lb_rule" "lb_https_rule" {
@@ -851,7 +837,7 @@ resource "azurerm_lb_rule" "lb_https_rule" {
   protocol                       = "Tcp"
   frontend_port                  = 443
   backend_port                   = 443
-  backend_address_pool_ids       = [ azurerm_lb_backend_address_pool.lb_backend[0].id ]
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.lb_backend[0].id]
 }
 
 # Autoscaling Stream Manager
@@ -866,14 +852,14 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
   source_image_id     = azurerm_image.stream_manager_image[0].id
 
   admin_ssh_key {
-    username          = "ubuntu"
-    public_key        = local.public_ssh_key
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
   }
 
   os_disk {
     storage_account_type = var.stream_manager_machine_storage_type
     caching              = "ReadWrite"
-    disk_size_gb         = var.stream_manager_volume_size 
+    disk_size_gb         = var.stream_manager_volume_size
   }
 
   network_interface {
@@ -886,9 +872,9 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
       primary                                = true
       subnet_id                              = azurerm_subnet.vpc_subnet_default.id
       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.lb_backend[0].id]
-      
+
       public_ip_address {
-        name  = "${var.name}-scale-set-ip"
+        name = "${var.name}-scale-set-ip"
       }
     }
   }
@@ -910,34 +896,34 @@ resource "azurerm_linux_virtual_machine_scale_set" "autoscale_sm" {
 ################################################################################
 # Red5 Pro node 
 resource "azurerm_linux_virtual_machine" "red5_node" {
-count                 = local.cluster_or_autoscale && var.node_image_create ? 1 : 0
-  name                = "${var.name}-node-vm-${var.azure_region}"
-  resource_group_name = local.az_resource_group_name
-  location            = var.azure_region
-  size                = var.node_machine_size
-  admin_username      = "ubuntu"
+  count                           = local.cluster_or_autoscale && var.node_image_create ? 1 : 0
+  name                            = "${var.name}-node-vm-${var.azure_region}"
+  resource_group_name             = local.az_resource_group_name
+  location                        = var.azure_region
+  size                            = var.node_machine_size
+  admin_username                  = "ubuntu"
   disable_password_authentication = true
   network_interface_ids = [
     azurerm_network_interface.node_network_interface[0].id,
   ]
 
   admin_ssh_key {
-    username          = "ubuntu"
-    public_key        = local.public_ssh_key
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
   }
 
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = var.node_machine_storage_type
     disk_size_gb         = var.node_image_volume_size
-    name                 = "${var.name}-node-disk" 
+    name                 = "${var.name}-node-disk"
   }
 
   source_image_reference {
-    publisher        = "Canonical"
-    offer            = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
-    sku              = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
-    version          = "latest"
+    publisher = "Canonical"
+    offer     = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku       = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
+    version   = "latest"
   }
 
   provisioner "file" {
@@ -968,12 +954,6 @@ count                 = local.cluster_or_autoscale && var.node_image_create ? 1 
       "sudo -E /home/ubuntu/red5pro-installer/r5p_install_server_basic.sh",
       "sudo -E /home/ubuntu/red5pro-installer/r5p_config_node.sh",
     ]
-    connection {
-      host        = self.public_ip_address
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = local.private_ssh_key
-    }
   }
 
 }
@@ -994,7 +974,7 @@ resource "azapi_resource_action" "deallocate_node_vm" {
   action      = "deallocate"
   method      = "POST"
 
-  depends_on  = [azapi_resource_action.stop_node_vm]
+  depends_on = [azapi_resource_action.stop_node_vm]
 }
 
 resource "azapi_resource_action" "generalize_node_vm" {
@@ -1004,7 +984,7 @@ resource "azapi_resource_action" "generalize_node_vm" {
   action      = "generalize"
   method      = "POST"
 
-  depends_on  = [azapi_resource_action.deallocate_node_vm]
+  depends_on = [azapi_resource_action.deallocate_node_vm]
 }
 
 ####################################################################################################
@@ -1028,13 +1008,13 @@ resource "azurerm_image" "stream_manager_image" {
   location                  = var.azure_region
   resource_group_name       = local.az_resource_group_name
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_stream_manager[0].id
-  
+
   lifecycle {
-    ignore_changes = [ name ]
+    ignore_changes = [name]
   }
 
-  depends_on = [ azapi_resource_action.deallocate_sm_vm,
-                 azapi_resource_action.generalize_sm_vm ]
+  depends_on = [azapi_resource_action.deallocate_sm_vm,
+  azapi_resource_action.generalize_sm_vm]
 }
 # Node Image
 resource "azurerm_image" "node_image" {
@@ -1043,20 +1023,20 @@ resource "azurerm_image" "node_image" {
   location                  = var.azure_region
   resource_group_name       = local.az_resource_group_name
   source_virtual_machine_id = azurerm_linux_virtual_machine.red5_node[0].id
-  
+
   lifecycle {
-    ignore_changes = [ name ]
+    ignore_changes = [name]
   }
 
-  depends_on = [ azapi_resource_action.deallocate_node_vm,
-                 azapi_resource_action.generalize_node_vm ]
+  depends_on = [azapi_resource_action.deallocate_node_vm,
+  azapi_resource_action.generalize_node_vm]
 }
 
 ################################################################################
 # Create/Delete node group (Stream Manager API)
 ################################################################################
 resource "time_sleep" "wait_for_delete_nodegroup" {
-  count      = var.node_group_create ? 1 : 0
+  count = var.node_group_create ? 1 : 0
   depends_on = [
     azurerm_linux_virtual_machine.red5_stream_manager,
     azurerm_network_interface_security_group_association.sm_network_interface_security_association,
@@ -1075,69 +1055,60 @@ resource "time_sleep" "wait_for_delete_nodegroup" {
     azurerm_network_security_group.kafka_service_network_security_group,
     azurerm_network_interface_security_group_association.kafka_service_network_interface_security_association,
   ]
-  
+
   destroy_duration = "2m"
 }
 
 resource "null_resource" "node_group" {
-  count            = local.cluster_or_autoscale && var.node_group_create ? 1 : 0
+  count = local.cluster_or_autoscale && var.node_group_create ? 1 : 0
   triggers = {
     trigger_name   = "node-group-trigger"
-    SM_IP          = "${local.stream_manager_ip}"
-    R5AS_AUTH_USER = "${var.stream_manager_auth_user}"
-    R5AS_AUTH_PASS = "${var.stream_manager_auth_password}"
+    SM_IP          = local.stream_manager_ip
+    R5AS_AUTH_USER = var.stream_manager_auth_user
+    R5AS_AUTH_PASS = var.stream_manager_auth_password
   }
   provisioner "local-exec" {
-    when        = create
-    command     = "bash ${abspath(path.module)}/red5pro-installer/r5p_create_node_group.sh"
+    when    = create
+    command = "bash ${abspath(path.module)}/red5pro-installer/r5p_create_node_group.sh"
     environment = {
-      SM_IP                                          = "${local.stream_manager_ip}"
-      NODE_GROUP_NAME                                = "${substr(var.name, 0, 16)}"
-      R5AS_AUTH_USER                                 = "${var.stream_manager_auth_user}"
-      R5AS_AUTH_PASS                                 = "${var.stream_manager_auth_password}"
+      SM_IP                                          = local.stream_manager_ip
+      NODE_GROUP_NAME                                = substr(var.name, 0, 16)
+      R5AS_AUTH_USER                                 = var.stream_manager_auth_user
+      R5AS_AUTH_PASS                                 = var.stream_manager_auth_password
       NODE_GROUP_CLOUD_PLATFORM                      = "AZURE"
-      NODE_GROUP_REGIONS                             = "${var.azure_region}"
-      NODE_GROUP_ENVIRONMENT                         = "${var.name}"
-      NODE_GROUP_VPC_NAME                            = "${local.vpc_name}"
-      NODE_GROUP_SECURITY_GROUP_NAME                 = "${local.security_group_name_node}"
-      NODE_GROUP_IMAGE_NAME                          = "${local.node_image_name}"
-      NODE_GROUP_ORIGINS_MIN                         = "${var.node_group_origins_min}"
-      NODE_GROUP_ORIGINS_MAX                         = "${var.node_group_origins_max}"
-      NODE_GROUP_ORIGIN_INSTANCE_TYPE                = "${var.node_group_origins_machine_size}"
-      NODE_GROUP_ORIGIN_VOLUME_SIZE                  = "${var.node_group_origins_volume_size}"
-      NODE_GROUP_ORIGINS_CONNECTION_LIMIT            = "${var.node_group_origins_connection_limit}"
-      NODE_GROUP_EDGES_MIN                           = "${var.node_group_edges_min}"
-      NODE_GROUP_EDGES_MAX                           = "${var.node_group_edges_max}"
-      NODE_GROUP_EDGE_INSTANCE_TYPE                  = "${var.node_group_edges_machine_size}"
-      NODE_GROUP_EDGE_VOLUME_SIZE                    = "${var.node_group_edges_volume_size}"
-      NODE_GROUP_EDGES_CONNECTION_LIMIT              = "${var.node_group_edges_connection_limit}"
-      NODE_GROUP_TRANSCODERS_MIN                     = "${var.node_group_transcoders_min}"
-      NODE_GROUP_TRANSCODERS_MAX                     = "${var.node_group_transcoders_max}"
-      NODE_GROUP_TRANSCODER_INSTANCE_TYPE            = "${var.node_group_transcoders_machine_size}"
-      NODE_GROUP_TRANSCODER_VOLUME_SIZE              = "${var.node_group_transcoders_volume_size}"
-      NODE_GROUP_TRANSCODERS_CONNECTION_LIMIT        = "${var.node_group_transcoders_connection_limit}"
-      NODE_GROUP_RELAYS_MIN                          = "${var.node_group_relays_min}"
-      NODE_GROUP_RELAYS_MAX                          = "${var.node_group_relays_max}"
-      NODE_GROUP_RELAY_INSTANCE_TYPE                 = "${var.node_group_relays_machine_size}"
-      NODE_GROUP_RELAY_VOLUME_SIZE                   = "${var.node_group_relays_volume_size}"
-      NODE_GROUP_ROUND_TRIP_AUTH_ENABLE              = "${var.node_config_round_trip_auth.enable}"
-      NODE_GROUP_ROUNT_TRIP_AUTH_TARGET_NODES        = "${join(",", var.node_config_round_trip_auth.target_nodes)}"
-      NODE_GROUP_ROUND_TRIP_AUTH_HOST                = "${var.node_config_round_trip_auth.auth_host}"
-      NODE_GROUP_ROUND_TRIP_AUTH_PORT                = "${var.node_config_round_trip_auth.auth_port}"
-      NODE_GROUP_ROUND_TRIP_AUTH_PROTOCOL            = "${var.node_config_round_trip_auth.auth_protocol}"
-      NODE_GROUP_ROUND_TRIP_AUTH_ENDPOINT_VALIDATE   = "${var.node_config_round_trip_auth.auth_endpoint_validate}"
-      NODE_GROUP_ROUND_TRIP_AUTH_ENDPOINT_INVALIDATE = "${var.node_config_round_trip_auth.auth_endpoint_invalidate}"
-      NODE_GROUP_WEBHOOK_ENABLE                      = "${var.node_config_webhooks.enable}"
-      NODE_GROUP_WEBHOOK_TARGET_NODES                = "${join(",", var.node_config_webhooks.target_nodes)}"
-      NODE_GROUP_WEBHOOK_ENDPOINT                    = "${var.node_config_webhooks.webhook_endpoint}"
-      NODE_GROUP_SOCIAL_PUSHER_ENABLE                = "${var.node_config_social_pusher.enable}"
-      NODE_GROUP_SOCIAL_PUSHER_TARGET_NODES          = "${join(",", var.node_config_social_pusher.target_nodes)}"
-      NODE_GROUP_RESTREAMER_ENABLE                   = "${var.node_config_restreamer.enable}"
-      NODE_GROUP_RESTREAMER_TARGET_NODES             = "${join(",", var.node_config_restreamer.target_nodes)}"
-      NODE_GROUP_RESTREAMER_TSINGEST                 = "${var.node_config_restreamer.restreamer_tsingest}"
-      NODE_GROUP_RESTREAMER_IPCAM                    = "${var.node_config_restreamer.restreamer_ipcam}"
-      NODE_GROUP_RESTREAMER_WHIP                     = "${var.node_config_restreamer.restreamer_whip}"
-      NODE_GROUP_RESTREAMER_SRTINGEST                = "${var.node_config_restreamer.restreamer_srtingest}"
+      NODE_GROUP_REGIONS                             = var.azure_region
+      NODE_GROUP_ENVIRONMENT                         = var.name
+      NODE_GROUP_VPC_NAME                            = local.vpc_name
+      NODE_GROUP_SECURITY_GROUP_NAME                 = local.security_group_name_node
+      NODE_GROUP_IMAGE_NAME                          = local.node_image_name
+      NODE_GROUP_ORIGINS_MIN                         = var.node_group_origins_min
+      NODE_GROUP_ORIGINS_MAX                         = var.node_group_origins_max
+      NODE_GROUP_ORIGIN_INSTANCE_TYPE                = var.node_group_origins_machine_size
+      NODE_GROUP_ORIGIN_VOLUME_SIZE                  = var.node_group_origins_volume_size
+      NODE_GROUP_EDGES_MIN                           = var.node_group_edges_min
+      NODE_GROUP_EDGES_MAX                           = var.node_group_edges_max
+      NODE_GROUP_EDGE_INSTANCE_TYPE                  = var.node_group_edges_machine_size
+      NODE_GROUP_EDGE_VOLUME_SIZE                    = var.node_group_edges_volume_size
+      NODE_GROUP_TRANSCODERS_MIN                     = var.node_group_transcoders_min
+      NODE_GROUP_TRANSCODERS_MAX                     = var.node_group_transcoders_max
+      NODE_GROUP_TRANSCODER_INSTANCE_TYPE            = var.node_group_transcoders_machine_size
+      NODE_GROUP_TRANSCODER_VOLUME_SIZE              = var.node_group_transcoders_volume_size
+      NODE_GROUP_RELAYS_MIN                          = var.node_group_relays_min
+      NODE_GROUP_RELAYS_MAX                          = var.node_group_relays_max
+      NODE_GROUP_RELAY_INSTANCE_TYPE                 = var.node_group_relays_machine_size
+      NODE_GROUP_RELAY_VOLUME_SIZE                   = var.node_group_relays_volume_size
+      NODE_GROUP_ROUND_TRIP_AUTH_ENABLE              = var.node_config_round_trip_auth.enable
+      NODE_GROUP_ROUNT_TRIP_AUTH_TARGET_NODES        = join(",", var.node_config_round_trip_auth.target_nodes)
+      NODE_GROUP_ROUND_TRIP_AUTH_HOST                = var.node_config_round_trip_auth.auth_host
+      NODE_GROUP_ROUND_TRIP_AUTH_PORT                = var.node_config_round_trip_auth.auth_port
+      NODE_GROUP_ROUND_TRIP_AUTH_PROTOCOL            = var.node_config_round_trip_auth.auth_protocol
+      NODE_GROUP_ROUND_TRIP_AUTH_ENDPOINT_VALIDATE   = var.node_config_round_trip_auth.auth_endpoint_validate
+      NODE_GROUP_ROUND_TRIP_AUTH_ENDPOINT_INVALIDATE = var.node_config_round_trip_auth.auth_endpoint_invalidate
+      NODE_GROUP_WEBHOOK_ENABLE                      = var.node_config_webhooks.enable
+      NODE_GROUP_WEBHOOK_TARGET_NODES                = join(",", var.node_config_webhooks.target_nodes)
+      NODE_GROUP_WEBHOOK_ENDPOINT                    = var.node_config_webhooks.webhook_endpoint
+      NODE_GROUP_SOCIAL_PUSHER_ENABLE                = var.node_config_social_pusher.enable
+      NODE_GROUP_SOCIAL_PUSHER_TARGET_NODES          = join(",", var.node_config_social_pusher.target_nodes)
     }
   }
   provisioner "local-exec" {
