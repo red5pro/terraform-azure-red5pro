@@ -555,7 +555,6 @@ resource "null_resource" "red5pro_sm_configuration" {
       "export SM_SSL='${local.stream_manager_ssl}'",
       "export SM_STANDALONE='${local.stream_manager_standalone}'",
       "export KAFKA_REPLICAS='${local.kafka_on_sm_replicas}'",
-      "export SM_SSL_DOMAIN='${var.https_ssl_certificate_domain_name}'",
       "export CONTAINER_REGISTRY='${var.stream_manager_container_registry}'",
       "export CONTAINER_REGISTRY_USER='${var.stream_manager_container_registry_user}'",
       "export CONTAINER_REGISTRY_PASSWORD='${var.stream_manager_container_registry_password}'",
@@ -808,6 +807,13 @@ resource "azurerm_lb" "autoscale_sm_lb" {
   }
   sku      = "Standard"
   sku_tier = "Regional"
+
+  lifecycle {
+    precondition {
+      condition     = var.https_ssl_certificate != "letsencrypt"
+      error_message = "ERROR! https_ssl_certificate=letsencrypt is not supported for type=autoscale - the Azure load balancer only gets an HTTPS rule and certificate when https_ssl_certificate=imported. The ACME challenge cannot reach Stream Manager through the load balancer."
+    }
+  }
 }
 
 resource "azurerm_lb_backend_address_pool" "lb_backend" {
