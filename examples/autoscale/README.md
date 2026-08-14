@@ -2,7 +2,7 @@
 
 In the following example, Terraform module will automates the infrastructure provisioning of the Autoscale Stream Managers 2.0 with Red5 Pro (SM2.0) Autoscaling node group (origins, edges, transcoders, relays)
 
-**`stream_manager_public_hostname`:** Set this to the DNS name clients use for Stream Manager (e.g. `sm.example.com`). It sets Traefik’s host, the admin UI API base, and outputs such as `stream_manager_url_https`. Use a concrete FQDN, not a wildcard. Point DNS at the load balancer hostname from outputs. For TLS, `https_ssl_certificate_domain_name` may be a wildcard (e.g. `*.example.com`) or an ACM primary name if that certificate covers this hostname.
+**`stream_manager_public_hostname`:** Set this to the DNS name clients use for Stream Manager (e.g. `sm.example.com`). It sets Traefik’s host, the admin UI API base, and outputs such as `stream_manager_url_https`. Use a concrete FQDN, not a wildcard. Point DNS at the load balancer hostname from outputs. TLS is terminated on the load balancer, so only `https_ssl_certificate = "imported"` is supported here - `letsencrypt` is rejected by a precondition. `https_ssl_certificate_domain_name` is not used for autoscale deployments.
 
 ## Terraform Deployed Resources (autoscale)
 
@@ -108,7 +108,6 @@ module "red5pro_autoscale" {
 
   # Example of imported HTTPS/SSL certificate configuration - please uncomment and provide your domain name, certificate and key paths
   # https_ssl_certificate             = "imported"
-  # https_ssl_certificate_domain_name = "red5pro.example.com"             # Cert domain name (may be *.example.com); must cover stream_manager_public_hostname
   # https_ssl_certificate_cert_path   = "/PATH/TO/SSL/CERT/fullchain.pem" # Path to cert file or full chain file
   # https_ssl_certificate_key_path    = "/PATH/TO/SSL/KEY/privkey.pem"    # Path to privkey file
 
@@ -135,15 +134,6 @@ module "red5pro_autoscale" {
     auth_endpoint_validate   = "/validateCredentials",
     auth_endpoint_invalidate = "/invalidateCredentials"
   }
-  # Restreamer configuration - (Optional) https://www.red5.net/docs/special/restreamer/overview/
-  node_config_restreamer = {
-    enable               = false,
-    target_nodes         = ["origin", "transcoder"],
-    restreamer_tsingest  = true,
-    restreamer_ipcam     = true,
-    restreamer_whip      = true,
-    restreamer_srtingest = true
-  }
   # Social Pusher configuration - (Optional) https://www.red5.net/docs/development/social-media-plugin/rest-api/
   node_config_social_pusher = {
     enable       = false,
@@ -156,17 +146,14 @@ module "red5pro_autoscale" {
   node_group_origins_max                  = 20               # Number of maximum Origins
   node_group_origins_machine_size        = "Standard_F2s_v2" # Machine size for Origins
   node_group_origins_volume_size          = 30               # Volume size for Origins
-  node_group_origins_connection_limit     = 20               # Maximum number of publishers to the origin server
   node_group_edges_min                    = 1                # Number of minimum Edges
   node_group_edges_max                    = 20               # Number of maximum Edges
   node_group_edges_machine_size          = "Standard_F2s_v2" # Machine size for Edges
   node_group_edges_volume_size            = 30               # Volume size for Edges
-  node_group_edges_connection_limit       = 200              # Maximum number of subscribers to the edge server
   node_group_transcoders_min              = 0                # Number of minimum Transcoders
   node_group_transcoders_max              = 20               # Number of maximum Transcoders
   node_group_transcoders_machine_size    = "Standard_F2s_v2" # Machine size for Transcoders
   node_group_transcoders_volume_size      = 30               # Volume size for Transcoders
-  node_group_transcoders_connection_limit = 20               # Maximum number of publishers to the transcoder server
   node_group_relays_min                   = 0                # Number of minimum Relays
   node_group_relays_max                   = 20               # Number of maximum Relays
   node_group_relays_machine_size         = "Standard_F2s_v2" # Machine size for Relays

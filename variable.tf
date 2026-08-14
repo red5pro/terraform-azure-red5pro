@@ -1,7 +1,7 @@
 variable "name" {
-  description     = "Name to be used on all the resources as identifier"
-  type            = string
-  default         = ""
+  description = "Name to be used on all the resources as identifier"
+  type        = string
+  default     = ""
   validation {
     condition     = length(var.name) > 0
     error_message = "The name value must be a valid! Example: example-name"
@@ -9,36 +9,36 @@ variable "name" {
 }
 
 variable "type" {
-  description     = "Type of deployment: standalone, cluster, autoscale"
-  type            = string
-  default         = "standalone"
+  description = "Type of deployment: standalone, cluster, autoscale"
+  type        = string
+  default     = "standalone"
   validation {
     condition     = var.type == "standalone" || var.type == "cluster" || var.type == "autoscale"
     error_message = "The type value must be a valid! Example: standalone, cluster, autoscale"
   }
 }
 variable "ubuntu_image_offer" {
-  description     = "Ubuntu version to be used for the machines."
-  type            = map(string)
+  description = "Ubuntu version to be used for the machines."
+  type        = map(string)
   default = {
-    "20.04"       = "0001-com-ubuntu-server-focal"
-    "22.04"       = "0001-com-ubuntu-server-jammy"
+    "20.04" = "0001-com-ubuntu-server-focal"
+    "22.04" = "0001-com-ubuntu-server-jammy"
   }
 }
 
 variable "ubuntu_image_sku" {
-  description     = "Ubuntu version to be used for the machines."
-  type            = map(string)
+  description = "Ubuntu version to be used for the machines."
+  type        = map(string)
   default = {
-    "20.04"       = "20_04-lts"
-    "22.04"       = "22_04-lts"
+    "20.04" = "20_04-lts"
+    "22.04" = "22_04-lts"
   }
 }
 
 variable "ubuntu_version" {
-  description     = "Ubuntu version which is going to be used for creating machine in Azure"
-  type            = string
-  default         = "22.04"
+  description = "Ubuntu version which is going to be used for creating machine in Azure"
+  type        = string
+  default     = "22.04"
   validation {
     condition     = var.ubuntu_version == "20.04" || var.ubuntu_version == "22.04"
     error_message = "Please specify the correct ubuntu version, it can either be 20.04 or 22.04"
@@ -46,9 +46,9 @@ variable "ubuntu_version" {
 }
 
 variable "path_to_red5pro_build" {
-  description     = "Path to the Red5 Pro build zip file, absolute path or relative path. https://account.red5pro.com/downloads. Example: /home/ubuntu/red5pro-server-0.0.0.b0-release.zip"
-  type            = string
-  default         = ""
+  description = "Path to the Red5 Pro build zip file, absolute path or relative path. https://account.red5pro.com/downloads. Example: /home/ubuntu/red5pro-server-0.0.0.b0-release.zip"
+  type        = string
+  default     = ""
   validation {
     condition     = fileexists(var.path_to_red5pro_build) == true
     error_message = "The path_to_red5pro_build value must be a valid! Example: /home/ubuntu/red5pro-server-0.0.0.b0-release.zip"
@@ -57,81 +57,81 @@ variable "path_to_red5pro_build" {
 
 # Microsoft Azure account configuration
 variable "azure_subscription_id" {
-  description     = "Subscription ID of the Azure account"
-  type            = string
-  default         = ""
+  description = "Subscription ID of the Azure account"
+  type        = string
+  default     = ""
 }
 variable "azure_tenant_id" {
-  description     = "Tenant ID of the Azure account"
-  type            = string
-  default         = ""
+  description = "Tenant ID of the Azure account"
+  type        = string
+  default     = ""
 }
 variable "azure_client_id" {
-  description     = "Client ID of azure account"
-  type            = string
-  default         = ""
+  description = "Client ID of azure account"
+  type        = string
+  default     = ""
 }
 variable "azure_client_secret" {
-  description     = "Client secret of the azure account"
-  type            = string
-  default         = ""
+  description = "Client secret of the azure account"
+  type        = string
+  default     = ""
 }
 
 variable "azure_resource_group_use_existing" {
-  description     = "Use existing azure resource group name where new resources will be created"
-  type            = bool
-  default         = true
+  description = "Use existing azure resource group name where new resources will be created"
+  type        = bool
+  default     = true
 }
 variable "existing_azure_resource_group_name" {
-  description     = "Use the already created resource group of azure account where all the resources will be created"
-  type            = string
-  default         = ""
+  description = "Use the already created resource group of azure account where all the resources will be created"
+  type        = string
+  default     = ""
 }
 variable "azure_region" {
-  description     = "Region in azure account which is used to create the resources"
-  type            = string
-  default         = ""
+  description = "Region in azure account which is used to create the resources"
+  type        = string
+  default     = ""
 }
 
 # VPC configuration
 variable "vpc_cidr_block" {
-  description     = "VPC IP range for Red5 Pro"
-  type            = string
-  default         = "10.0.0.0/16"
+  description = "VPC IP range for Red5 Pro"
+  type        = string
+  default     = "10.0.0.0/16"
 }
 
 # SSH keys Configuration
 variable "ssh_key_use_existing" {
-  description     = "Use existing SSH key pair or create a new one. true = use existing, false = create new"
-  type            = bool
-  default         = false
+  description = "Use existing SSH key pair or create a new one. true = use existing, false = create new"
+  type        = bool
+  default     = false
 }
 variable "existing_public_ssh_key_path" {
-  description     = "Already created public SSH key path"
-  type            = string
-  default         = ""
+  description = "Already created public SSH key path"
+  type        = string
+  default     = ""
 }
 variable "existing_private_ssh_key_path" {
-  description     = "Already created private SSH key path"
-  type            = string
-  default         = ""
+  description = "Already created private SSH key path"
+  type        = string
+  default     = ""
 }
 
 # Standalone server configuration
 variable "standalone_virtual_machine_size" {
-  description     = "Red5 Pro standalone virtual machine size"
-  type            = string
-  default         = ""
+  description = "Red5 Pro standalone virtual machine size"
+  type        = string
+  default     = ""
 }
 variable "standalone_virtual_machine_storage_type" {
-  description     = "Red5 Pro standalone virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
-  type            = string
-  default         = "Premium_LRS"
+  description = "Red5 Pro standalone virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  type        = string
+  default     = "Premium_LRS"
 }
 variable "standalone_volume_size" {
-  description     = "Red5 Pro standalone server volume size"
-  type            = number
-  default         = 30
+  description = "Red5 Pro standalone server volume size"
+  type        = number
+  default     = 30
   validation {
     condition     = var.standalone_volume_size >= 30
     error_message = "The standalone_volume_size value must be a valid! Minimum 30"
@@ -363,7 +363,7 @@ variable "https_ssl_certificate" {
   }
 }
 variable "https_ssl_certificate_domain_name" {
-  description = "Certificate identity for Let's Encrypt, imported cert, or ACM lookup (existing). May be a wildcard (e.g. *.example.com). For cluster/autoscale, user-facing URLs and Traefik use stream_manager_public_hostname (a concrete FQDN covered by that cert), not this value."
+  description = "Certificate identity for the Standalone Red5 Pro server: the certbot domain when https_ssl_certificate=letsencrypt, and the FQDN in the HTTPS URL outputs. Wildcards (e.g. *.example.com) are only valid with https_ssl_certificate=imported - Let's Encrypt here uses HTTP-01, which cannot issue a wildcard. For cluster/autoscale this value is not the certificate subject: Traefik and the ACME challenge use stream_manager_public_hostname (TRAEFIK_HOST) instead."
   type        = string
   default     = ""
 }
@@ -490,32 +490,11 @@ variable "node_group_relays_volume_size" {
     error_message = "The node_group_relays_volume_size value must be a valid! Minimum 30"
   }
 }
-variable "stream_manager_admin_ui_version" {
-  description = "value to set the version for Stream Manager 2.0 Admin UI image (Optional) - if not set it will use version from stream_manager_version variable"
-  type        = string
-  default     = ""
-}
 variable "stream_manager_public_hostname" {
-  description = "Public FQDN for Stream Manager 2.0 (cluster/autoscale): TRAEFIK_HOST, admin UI API base, stream_manager_url_https, etc. Must be a real hostname (e.g. sm.example.com), not a wildcard. https_ssl_certificate_domain_name may still be *.example.com if this host is under that zone."
+  description = "Public FQDN for Stream Manager 2.0 (cluster/autoscale): TRAEFIK_HOST, admin UI API base, stream_manager_url_https, etc. Must be a real hostname (e.g. sm.example.com), not a wildcard. It is also the certificate subject - with letsencrypt the ACME challenge is issued for this hostname, and with imported the certificate must cover it."
   type        = string
   default     = ""
 }
-variable "node_group_origins_connection_limit" {
-  description = "Connection limit for Origins (maximum number of publishers to the origin server)"
-  type        = number
-  default     = 20
-}
-variable "node_group_edges_connection_limit" {
-  description = "Connection limit for Edges (maximum number of subscribers to the edge server)"
-  type        = number
-  default     = 200
-}
-variable "node_group_transcoders_connection_limit" {
-  description = "Connection limit for Transcoders (maximum number of publishers to the transcoder server)"
-  type        = number
-  default     = 20
-}
-
 # Azure Video On Demand via Cloud Storage configuration
 variable "standalone_red5pro_cloudstorage_enable" {
   description = "Red5 Pro server cloud storage enable/disable (https://www.red5.net/docs/special/cloudstorage-plugin/azure-cloudstorage/)"
@@ -579,7 +558,7 @@ variable "node_config_round_trip_auth" {
 }
 variable "node_config_social_pusher" {
   description = "Social Pusher configuration - (Optional) https://www.red5.net/docs/development/social-media-plugin/rest-api/"
-  type           = object({
+  type = object({
     enable       = bool
     target_nodes = list(string)
   })
@@ -588,26 +567,6 @@ variable "node_config_social_pusher" {
     target_nodes = []
   }
 }
-variable "node_config_restreamer" {
-  description = "Restreamer configuration - (Optional) https://www.red5.net/docs/special/restreamer/overview/"
-  type                   = object({
-    enable               = bool
-    target_nodes         = list(string)
-    restreamer_tsingest  = bool
-    restreamer_ipcam     = bool
-    restreamer_whip      = bool
-    restreamer_srtingest = bool
-  })
-  default = {
-    enable               = false
-    target_nodes         = []
-    restreamer_tsingest  = false
-    restreamer_ipcam     = false
-    restreamer_whip      = false
-    restreamer_srtingest = false
-  }
-}
-
 # kafka configuration
 variable "kafka_standalone_instance_create" {
   description = "Create a new Kafka standalone instance true/false"
@@ -615,19 +574,19 @@ variable "kafka_standalone_instance_create" {
   default     = false
 }
 variable "kafka_service_tcp_nsg_ports" {
-  description     = "Red5 Pro ports enable for Kafka service"
-  type            = list(number)
-  default         = [22, 9092]
+  description = "Red5 Pro ports enable for Kafka service"
+  type        = list(number)
+  default     = [22, 9092]
 }
 variable "kafka_service_machine_size" {
-  description     = "Kafka service virtual machine size"
-  type            = string
-  default         = "Standard_F2s_v2"
+  description = "Kafka service virtual machine size"
+  type        = string
+  default     = "Standard_F2s_v2"
 }
 variable "kafka_service_machine_storage_type" {
-  description     = "Kafka service virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
-  type            = string
-  default         = "Premium_LRS"
+  description = "Kafka service virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  type        = string
+  default     = "Premium_LRS"
 }
 variable "kafka_standalone_instance_arhive_url" {
   description = "Kafka standalone instance - archive URL"
