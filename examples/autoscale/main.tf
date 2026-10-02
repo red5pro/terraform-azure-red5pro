@@ -57,6 +57,16 @@ module "red5pro_autoscale" {
   kafka_service_machine_size         = "Standard_F8s_v2" # Machine size for Kafka service
   kafka_service_machine_storage_type = "Premium_LRS"     # Kafka service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
 
+  # RabbitMQ configuration - (Optional)
+  rabbitmq_create               = false                       # true - create RabbitMQ instances, false - do not create RabbitMQ
+  rabbitmq_mode                 = "single"                    # single - one instance, cluster - 3 instances in a RabbitMQ cluster
+  rabbitmq_image                = "rabbitmq:4.3.6-management" # RabbitMQ Docker image
+  rabbitmq_machine_size         = "Standard_F2s_v2"           # Machine size for RabbitMQ instances
+  rabbitmq_machine_storage_type = "Premium_LRS"               # RabbitMQ storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  rabbitmq_volume_size          = 30                          # Volume size in GB for RabbitMQ instances
+  rabbitmq_user                 = "red5pro"                   # RabbitMQ user name
+  rabbitmq_password             = ""                          # RabbitMQ user password, empty value - generate a random password
+
   # Red5 Pro general configuration
   red5pro_license_key = "1111-2222-3333-4444" # Red5 Pro license key (https://account.red5pro.com/login)
   red5pro_api_enable  = true                  # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
@@ -73,6 +83,8 @@ module "red5pro_autoscale" {
   stream_manager_proxy_password       = "example_proxy_password"   # Stream Manager 2.0 proxy password
   stream_manager_spatial_user         = "example_spatial_user"     # Stream Manager 2.0 spatial user name
   stream_manager_spatial_password     = "example_spatial_password" # Stream Manager 2.0 spatial password
+  stream_manager_intent_user          = "intent_admin"             # Stream Manager 2.0 intent API user name
+  stream_manager_intent_password      = ""                         # Stream Manager 2.0 intent API password (generated when empty)
   stream_manager_version              = "latest"                   # Stream Manager 2.0 docker images version (latest, 14.1.0, 14.1.1, etc.) - https://hub.docker.com/r/red5pro/as-admin/tags
   stream_manager_public_hostname      = "sm.example.com"           # Required: public FQDN for Traefik, admin UI, and HTTPS URLs (not a wildcard). Point DNS A/alias at the load balancer DNS name from outputs.
 
@@ -134,5 +146,5 @@ module "red5pro_autoscale" {
 }
 
 output "module_output" {
-  value = module.red5pro_autoscale
+  value = { for k, v in module.red5pro_autoscale : k => v if !contains(["rabbitmq_password", "stream_manager_intent_password"], k) }
 }

@@ -1,29 +1,43 @@
 locals {
-  standalone                    = var.type == "standalone"
-  cluster                       = var.type == "cluster"
-  autoscale                     = var.type == "autoscale"
-  cluster_or_autoscale          = local.cluster || local.autoscale
-  ssh_private_key_path          = var.ssh_key_use_existing ? var.existing_private_ssh_key_path : local_file.red5pro_ssh_key_pem[0].filename
-  az_resource_group_name        = var.azure_resource_group_use_existing ? var.existing_azure_resource_group_name : azurerm_resource_group.az_resource_group[0].name
-  public_ssh_key                = var.ssh_key_use_existing ? file(var.existing_public_ssh_key_path) : tls_private_key.red5pro_ssh_key[0].public_key_openssh
-  private_ssh_key               = var.ssh_key_use_existing ? file(var.existing_private_ssh_key_path) : tls_private_key.red5pro_ssh_key[0].private_key_pem
-  stream_manager_ip             = local.autoscale ? azurerm_public_ip.lb_ip[0].ip_address : local.cluster ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
-  standalone_server_ip          = local.standalone ? azurerm_linux_virtual_machine.red5_standalone[0].public_ip_address : null
-  stream_manager_ssl            = local.cluster_or_autoscale ? var.https_ssl_certificate : null
-  stream_manager_standalone     = local.autoscale ? false : true
-  kafka_standalone_instance     = local.autoscale ? true : local.cluster && var.kafka_standalone_instance_create ? true : false
-  kafka_ip                      = local.cluster_or_autoscale ? local.kafka_standalone_instance ? azurerm_linux_virtual_machine.red5_kafka_service[0].private_ip_address : azurerm_linux_virtual_machine.red5_stream_manager[0].private_ip_address : null
-  kafka_on_sm_replicas          = local.kafka_standalone_instance ? 0 : 1
-  kafka_ssl_keystore_key        = local.cluster_or_autoscale ? nonsensitive(join("\\\\n", split("\n", trimspace(tls_private_key.kafka_server_key[0].private_key_pem_pkcs8)))) : null
-  kafka_ssl_truststore_cert     = local.cluster_or_autoscale ? nonsensitive(join("\\\\n", split("\n", tls_self_signed_cert.ca_cert[0].cert_pem))) : null
-  kafka_ssl_keystore_cert_chain = local.cluster_or_autoscale ? nonsensitive(join("\\\\n", split("\n", tls_locally_signed_cert.kafka_server_cert[0].cert_pem))) : null
-  vpc_name                      = azurerm_virtual_network.red5_vpc.name
-  vpc_id                        = azurerm_virtual_network.red5_vpc.id
-  security_group_name_node      = var.node_image_create ? azurerm_network_security_group.red5_node_network_security_group[0].name : null
-  node_image_name               = var.node_image_create ? azurerm_image.node_image[0].name : null
-  security_group_name_kafka     = local.autoscale ? azurerm_network_security_group.kafka_service_network_security_group[0].name : local.cluster && var.kafka_standalone_instance_create ? azurerm_network_security_group.kafka_service_network_security_group[0].name : null
-  security_group_name_sm        = local.cluster_or_autoscale ? azurerm_network_security_group.stream_manager_network_security_group[0].name : null
-  red5pro_node_image_name       = local.cluster_or_autoscale && var.node_image_create ? "${var.name}-node-image-${random_id.node_image_suffix[0].hex}" : ""
+  standalone                     = var.type == "standalone"
+  cluster                        = var.type == "cluster"
+  autoscale                      = var.type == "autoscale"
+  cluster_or_autoscale           = local.cluster || local.autoscale
+  ssh_private_key_path           = var.ssh_key_use_existing ? var.existing_private_ssh_key_path : local_file.red5pro_ssh_key_pem[0].filename
+  az_resource_group_name         = var.azure_resource_group_use_existing ? var.existing_azure_resource_group_name : azurerm_resource_group.az_resource_group[0].name
+  public_ssh_key                 = var.ssh_key_use_existing ? file(var.existing_public_ssh_key_path) : tls_private_key.red5pro_ssh_key[0].public_key_openssh
+  private_ssh_key                = var.ssh_key_use_existing ? file(var.existing_private_ssh_key_path) : tls_private_key.red5pro_ssh_key[0].private_key_pem
+  stream_manager_ip              = local.autoscale ? azurerm_public_ip.lb_ip[0].ip_address : local.cluster ? azurerm_linux_virtual_machine.red5_stream_manager[0].public_ip_address : null
+  standalone_server_ip           = local.standalone ? azurerm_linux_virtual_machine.red5_standalone[0].public_ip_address : null
+  stream_manager_ssl             = local.cluster_or_autoscale ? var.https_ssl_certificate : null
+  stream_manager_standalone      = local.autoscale ? false : true
+  kafka_standalone_instance      = local.autoscale ? true : local.cluster && var.kafka_standalone_instance_create ? true : false
+  kafka_ip                       = local.cluster_or_autoscale ? local.kafka_standalone_instance ? azurerm_linux_virtual_machine.red5_kafka_service[0].private_ip_address : azurerm_linux_virtual_machine.red5_stream_manager[0].private_ip_address : null
+  kafka_on_sm_replicas           = local.kafka_standalone_instance ? 0 : 1
+  kafka_ssl_keystore_key         = local.cluster_or_autoscale ? nonsensitive(join("\\\\n", split("\n", trimspace(tls_private_key.kafka_server_key[0].private_key_pem_pkcs8)))) : null
+  kafka_ssl_truststore_cert      = local.cluster_or_autoscale ? nonsensitive(join("\\\\n", split("\n", tls_self_signed_cert.ca_cert[0].cert_pem))) : null
+  kafka_ssl_keystore_cert_chain  = local.cluster_or_autoscale ? nonsensitive(join("\\\\n", split("\n", tls_locally_signed_cert.kafka_server_cert[0].cert_pem))) : null
+  vpc_name                       = azurerm_virtual_network.red5_vpc.name
+  vpc_id                         = azurerm_virtual_network.red5_vpc.id
+  security_group_name_node       = var.node_image_create ? azurerm_network_security_group.red5_node_network_security_group[0].name : null
+  node_image_name                = var.node_image_create ? azurerm_image.node_image[0].name : null
+  security_group_name_kafka      = local.autoscale ? azurerm_network_security_group.kafka_service_network_security_group[0].name : local.cluster && var.kafka_standalone_instance_create ? azurerm_network_security_group.kafka_service_network_security_group[0].name : null
+  security_group_name_sm         = local.cluster_or_autoscale ? azurerm_network_security_group.stream_manager_network_security_group[0].name : null
+  red5pro_node_image_name        = local.cluster_or_autoscale && var.node_image_create ? "${var.name}-node-image-${random_id.node_image_suffix[0].hex}" : ""
+  rabbitmq_create                = local.cluster_or_autoscale && var.rabbitmq_create
+  rabbitmq_node_count            = local.rabbitmq_create ? var.rabbitmq_mode == "cluster" ? 3 : 1 : 0
+  rabbitmq_password              = local.rabbitmq_create ? var.rabbitmq_password != "" ? var.rabbitmq_password : random_password.rabbitmq_password[0].result : ""
+  stream_manager_intent_password = local.cluster_or_autoscale ? var.stream_manager_intent_password != "" ? var.stream_manager_intent_password : random_password.r5as_intent_password[0].result : ""
+  # The Stream Proxy selects a node group by the letter at the end of its name, A first,
+  # then B and so on, so with the proxy the name ends with A. Node group name is max 16 characters.
+  node_group_name = local.stream_proxy_enable ? "${trimsuffix(substr(var.name, 0, 14), "-")}-A" : substr(var.name, 0, 16)
+  # Stream Proxy runs in the Stream Manager compose stack, deployment type cluster only
+  stream_proxy_enable = local.cluster && var.stream_proxy_enable
+  # The public IP is used instead of stream_manager_public_hostname on purpose: nginx
+  # inside the Stream Proxy resolves host names through public resolvers, which fails in
+  # a VNet without outbound DNS. Traefik accepts the Stream Manager public IP as a host,
+  # it is in the router rules together with TRAEFIK_HOST.
+  stream_proxy_sm_url = local.stream_proxy_enable ? "${local.stream_manager_ssl == "none" ? "http" : "https"}://${local.stream_manager_ip}" : ""
 }
 
 ################################################################################
@@ -321,6 +335,24 @@ resource "azurerm_network_security_group" "stream_manager_network_security_group
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+  # Ports of the Red5 Pro Stream Proxy, added only when stream_proxy_enable = true
+  dynamic "security_rule" {
+    for_each = local.stream_proxy_enable ? {
+      tcp = { priority = 110, protocol = "Tcp", ports = var.stream_proxy_nsg_tcp_ports }
+      udp = { priority = 120, protocol = "Udp", ports = var.stream_proxy_nsg_udp_ports }
+    } : {}
+    content {
+      name                       = "${var.name}-sm-stream-proxy-${security_rule.key}-nsg-rule"
+      priority                   = security_rule.value.priority
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = security_rule.value.protocol
+      source_port_range          = "*"
+      destination_port_ranges    = security_rule.value.ports
+      source_address_prefix      = "*"
+      destination_address_prefix = "*"
+    }
+  }
 }
 
 resource "azurerm_network_interface_security_group_association" "sm_network_interface_security_association" {
@@ -450,6 +482,30 @@ resource "random_id" "r5as_secrets_key" {
   byte_length = 32
 }
 
+resource "random_password" "r5as_intent_password" {
+  count   = local.cluster_or_autoscale && var.stream_manager_intent_password == "" ? 1 : 0
+  length  = 24
+  special = false
+}
+
+# Stream Proxy configuration check, it is a separate resource so the errors are
+# reported before anything is created
+resource "terraform_data" "validate_stream_proxy" {
+  count = var.stream_proxy_enable ? 1 : 0
+  input = var.stream_proxy_version
+
+  lifecycle {
+    precondition {
+      condition     = local.cluster
+      error_message = "ERROR! stream_proxy_enable = true is supported only for type = cluster, current type is ${var.type}. The Stream Proxy runs on the Stream Manager instance and its RTMP, RTSP and SRT ports cannot be served by the load balancer of the autoscale deployment."
+    }
+    precondition {
+      condition     = var.stream_proxy_version != ""
+      error_message = "ERROR! Value in variable stream_proxy_version is required when stream_proxy_enable = true! Example: main.b41"
+    }
+  }
+}
+
 resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
   count               = local.cluster_or_autoscale ? 1 : 0
   name                = "${var.name}-sm-vm-${var.azure_region}"
@@ -503,6 +559,8 @@ resource "azurerm_linux_virtual_machine" "red5_stream_manager" {
     R5AS_PROXY_PASS=${var.stream_manager_proxy_password}
     R5AS_SPATIAL_USER=${var.stream_manager_spatial_user}
     R5AS_SPATIAL_PASS=${var.stream_manager_spatial_password}
+    R5AS_INTENT_USER=${var.stream_manager_intent_user}
+    R5AS_INTENT_PASS=${local.stream_manager_intent_password}
     R5AS_CONFERENCE_SECRET=${random_id.r5as_conference_secret[0].hex}
     R5AS_NODE_API_ACCESS_TOKEN=${var.red5pro_api_key}
     CONTAINER_REGISTRY=${var.stream_manager_container_registry}
@@ -558,10 +616,12 @@ resource "null_resource" "red5pro_sm_configuration" {
       AS_ADMIN_UI_NODE_IMAGE_NAME=${local.red5pro_node_image_name}
       AS_ADMIN_UI_AZURE_VPC=${local.vpc_name}
       AS_ADMIN_UI_AZURE_SECURITY_GROUP=${local.security_group_name_node}
+      ${local.stream_proxy_enable ? "STREAM_PROXY_VERSION=${var.stream_proxy_version}\nR5SP_STREAM_MANAGER_URL=${local.stream_proxy_sm_url}" : ""}
       EOM
       EOT
       ,
       "export SM_SSL='${local.stream_manager_ssl}'",
+      "export STREAM_PROXY_ENABLE='${local.stream_proxy_enable}'",
       "export SM_STANDALONE='${local.stream_manager_standalone}'",
       "export KAFKA_REPLICAS='${local.kafka_on_sm_replicas}'",
       "export CONTAINER_REGISTRY='${var.stream_manager_container_registry}'",
@@ -787,6 +847,165 @@ resource "null_resource" "red5pro_kafka" {
     ]
   }
   depends_on = [tls_cert_request.kafka_server_csr, azurerm_linux_virtual_machine.red5_kafka_service]
+}
+
+################################################################################
+# RabbitMQ servers  (Azure virtual Machines)
+################################################################################
+resource "random_password" "rabbitmq_password" {
+  count   = local.rabbitmq_create && var.rabbitmq_password == "" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "random_password" "rabbitmq_erlang_cookie" {
+  count   = local.rabbitmq_create ? 1 : 0
+  length  = 32
+  special = false
+  upper   = true
+  lower   = false
+  numeric = false
+}
+
+resource "azurerm_public_ip" "rabbitmq_public_ip" {
+  count               = local.rabbitmq_node_count
+  name                = "${var.name}-rabbitmq-${count.index + 1}-public-ip-${var.azure_region}"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group_name
+  allocation_method   = "Static"
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "azurerm_network_interface" "rabbitmq_network_interface" {
+  count               = local.rabbitmq_node_count
+  name                = "${var.name}-rabbitmq-${count.index + 1}-nic-${var.azure_region}"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group_name
+  ip_configuration {
+    name                          = "${var.name}-rabbitmq-${count.index + 1}-ipconf-${var.azure_region}"
+    subnet_id                     = azurerm_subnet.vpc_subnet_default.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.rabbitmq_public_ip[count.index].id
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "azurerm_network_security_group" "rabbitmq_network_security_group" {
+  count               = local.rabbitmq_create ? 1 : 0
+  name                = "${var.name}-rabbitmq-nsg-${var.azure_region}"
+  location            = var.azure_region
+  resource_group_name = local.az_resource_group_name
+  security_rule {
+    name                       = "${var.name}-rabbitmq-tcp-nsg-rule"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = var.rabbitmq_tcp_nsg_ports
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+  security_rule {
+    name                       = "${var.name}-rabbitmq-amqp-nsg-rule"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5672"
+    source_address_prefix      = var.vpc_cidr_block
+    destination_address_prefix = "*"
+  }
+  dynamic "security_rule" {
+    for_each = local.rabbitmq_node_count > 1 ? [1] : []
+    content {
+      name                       = "${var.name}-rabbitmq-cluster-nsg-rule"
+      priority                   = 120
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_ranges    = ["4369", "25672", "35672-35682"]
+      source_address_prefixes    = azurerm_network_interface.rabbitmq_network_interface[*].private_ip_address
+      destination_address_prefix = "*"
+    }
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "rabbitmq_network_interface_security_association" {
+  count                     = local.rabbitmq_node_count
+  network_interface_id      = azurerm_network_interface.rabbitmq_network_interface[count.index].id
+  network_security_group_id = azurerm_network_security_group.rabbitmq_network_security_group[0].id
+}
+
+resource "azurerm_linux_virtual_machine" "red5_rabbitmq" {
+  count               = local.rabbitmq_node_count
+  name                = "${var.name}-rabbitmq-${count.index + 1}-vm-${var.azure_region}"
+  resource_group_name = local.az_resource_group_name
+  location            = var.azure_region
+  size                = var.rabbitmq_machine_size
+  admin_username      = "ubuntu"
+  network_interface_ids = [
+    azurerm_network_interface.rabbitmq_network_interface[count.index].id,
+  ]
+
+  admin_ssh_key {
+    username   = "ubuntu"
+    public_key = local.public_ssh_key
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = var.rabbitmq_machine_storage_type
+    disk_size_gb         = var.rabbitmq_volume_size
+    name                 = "${var.name}-rabbitmq-${count.index + 1}-disk"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = lookup(var.ubuntu_image_offer, var.ubuntu_version, "what?")
+    sku       = lookup(var.ubuntu_image_sku, var.ubuntu_version, "what?")
+    version   = "latest"
+  }
+}
+
+resource "null_resource" "red5pro_rabbitmq" {
+  count = local.rabbitmq_node_count
+
+  connection {
+    host        = azurerm_linux_virtual_machine.red5_rabbitmq[count.index].public_ip_address
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = local.private_ssh_key
+  }
+
+  provisioner "file" {
+    source      = "${abspath(path.module)}/red5pro-installer"
+    destination = "/home/ubuntu"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo iptables -F",
+      "sudo netfilter-persistent save",
+      "sudo cloud-init status --wait",
+      "export RMQ_IMAGE='${var.rabbitmq_image}'",
+      "export RMQ_USER='${var.rabbitmq_user}'",
+      "export RMQ_PASSWORD='${nonsensitive(local.rabbitmq_password)}'",
+      "export RMQ_ERLANG_COOKIE='${nonsensitive(random_password.rabbitmq_erlang_cookie[0].result)}'",
+      "export RMQ_NODE_INDEX='${count.index + 1}'",
+      "export RMQ_NODE_IPS='${join(",", azurerm_linux_virtual_machine.red5_rabbitmq[*].private_ip_address)}'",
+      "cd /home/ubuntu/red5pro-installer/",
+      "sudo chmod +x /home/ubuntu/red5pro-installer/*.sh",
+      "sudo -E /home/ubuntu/red5pro-installer/r5p_rabbitmq_install.sh",
+    ]
+  }
+  depends_on = [azurerm_linux_virtual_machine.red5_rabbitmq, azurerm_network_interface_security_group_association.rabbitmq_network_interface_security_association]
 }
 
 ################################################################################
@@ -1087,7 +1306,7 @@ resource "null_resource" "node_group" {
     command = "bash ${abspath(path.module)}/red5pro-installer/r5p_create_node_group.sh"
     environment = {
       SM_IP                                          = local.stream_manager_ip
-      NODE_GROUP_NAME                                = substr(var.name, 0, 16)
+      NODE_GROUP_NAME                                = local.node_group_name
       R5AS_AUTH_USER                                 = var.stream_manager_auth_user
       R5AS_AUTH_PASS                                 = var.stream_manager_auth_password
       NODE_GROUP_CLOUD_PLATFORM                      = "AZURE"

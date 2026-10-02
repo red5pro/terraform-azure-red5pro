@@ -113,6 +113,6 @@ module "red5pro_standalone" {
 }
 
 output "module_output" {
-  value = module.red5pro_standalone
+  value = { for k, v in module.red5pro_standalone : k => v if !contains(["rabbitmq_password", "stream_manager_intent_password"], k) }
 }
 ```
