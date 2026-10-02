@@ -261,6 +261,17 @@ variable "stream_manager_spatial_password" {
   type        = string
   default     = ""
 }
+variable "stream_manager_intent_user" {
+  description = "value to set the user name for Stream Manager 2.0 intent API (ROLE_INTENT)"
+  type        = string
+  default     = "intent_admin"
+}
+variable "stream_manager_intent_password" {
+  description = "value to set the user password for Stream Manager 2.0 intent API (ROLE_INTENT). Generated when empty"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
 variable "stream_manager_version" {
   description = "value to set the version for Stream Manager 2.0"
   type        = string
@@ -291,6 +302,18 @@ variable "stream_manager_volume_size" {
   }
 }
 
+# Red5 Pro Stream Proxy configuration
+variable "stream_proxy_enable" {
+  description = "Deploy Red5 Pro Stream Proxy alongside the Stream Manager 2.0 services. Supported for deployment type cluster only. It publishes RTMP/RTMPS 1935-1944, RTSP/RTSPS 8554-8563 and SRT 10100-10149 on the Stream Manager instance, and the matching rules are added to the Stream Manager network security group."
+  type        = bool
+  default     = false
+}
+variable "stream_proxy_version" {
+  description = "Red5 Pro Stream Proxy docker image version, used only when stream_proxy_enable = true. Example: main.b41"
+  type        = string
+  default     = ""
+}
+
 ########################################################
 # Red5 Pro Netwrok security group configuration
 ########################################################
@@ -311,6 +334,21 @@ variable "stream_manager_red5_nsg_tcp_ports" {
   description = "Red5 Pro TCP ports enable for stream manager server deloyment"
   type        = list(number)
   default     = [22, 80, 9092, 443]
+}
+variable "stream_proxy_nsg_tcp_ports" {
+  description = "Stream Proxy TCP ports enable for stream manager server deployment, used only when stream_proxy_enable = true. RTMP/RTMPS 1935-1944, RTSP/RTSPS 8554-8563"
+  type        = list(string)
+  default     = ["1935-1944", "8554-8563"]
+}
+variable "stream_proxy_nsg_udp_ports" {
+  description = "Stream Proxy UDP ports enable for stream manager server deployment, used only when stream_proxy_enable = true. RTSP 8554-8558, SRT 10100-10149"
+  type        = list(string)
+  default     = ["8554-8558", "10100-10149"]
+}
+variable "rabbitmq_tcp_nsg_ports" {
+  description = "TCP ports enable for RabbitMQ instances from any source. AMQP port 5672 is always allowed from the VNet CIDR, cluster ports between RabbitMQ instances"
+  type        = list(number)
+  default     = [22]
 }
 # Node server Security group
 variable "node_red5_tcp_nsg_ports" {
@@ -600,6 +638,65 @@ variable "kafka_standalone_volume_size" {
   validation {
     condition     = var.kafka_standalone_volume_size >= 30
     error_message = "The kafka_standalone_volume_size value must be a valid! Minimum 30"
+  }
+}
+
+# RabbitMQ configuration
+variable "rabbitmq_create" {
+  description = "Create RabbitMQ instances (cluster/autoscale only) true/false"
+  type        = bool
+  default     = false
+}
+variable "rabbitmq_mode" {
+  description = "RabbitMQ deployment mode: single - one instance, cluster - 3 instances in a RabbitMQ cluster"
+  type        = string
+  default     = "single"
+  validation {
+    condition     = contains(["single", "cluster"], var.rabbitmq_mode)
+    error_message = "The rabbitmq_mode value must be single or cluster"
+  }
+}
+variable "rabbitmq_image" {
+  description = "RabbitMQ Docker image"
+  type        = string
+  default     = "rabbitmq:4.3.6-management"
+}
+variable "rabbitmq_machine_size" {
+  description = "RabbitMQ virtual machine size"
+  type        = string
+  default     = "Standard_F2s_v2"
+}
+variable "rabbitmq_machine_storage_type" {
+  description = "RabbitMQ virtual machine storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS"
+  type        = string
+  default     = "Premium_LRS"
+}
+variable "rabbitmq_volume_size" {
+  description = "value to set the volume size for RabbitMQ"
+  type        = number
+  default     = 30
+  validation {
+    condition     = var.rabbitmq_volume_size >= 30
+    error_message = "The rabbitmq_volume_size value must be a valid! Minimum 30"
+  }
+}
+variable "rabbitmq_user" {
+  description = "RabbitMQ user name"
+  type        = string
+  default     = "red5pro"
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_-]+$", var.rabbitmq_user))
+    error_message = "The rabbitmq_user value must contain only letters, digits, '_' and '-'"
+  }
+}
+variable "rabbitmq_password" {
+  description = "RabbitMQ user password, empty value - generate a random password"
+  type        = string
+  default     = ""
+  sensitive   = true
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_-]*$", var.rabbitmq_password))
+    error_message = "The rabbitmq_password value must contain only letters, digits, '_' and '-'"
   }
 }
 variable "stream_manager_container_registry" {
