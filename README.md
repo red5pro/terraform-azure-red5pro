@@ -192,7 +192,7 @@ module "red5pro_standalone" {
 }
 
 output "module_output" {
-  value = module.red5pro_standalone
+  value = { for k, v in module.red5pro_standalone : k => v if !contains(["rabbitmq_password", "stream_manager_intent_password"], k) }
 }
 ```
 
@@ -209,9 +209,11 @@ Set **`stream_manager_public_hostname`** to the DNS name clients use for Stream 
 - Public subnet
 - Security group for Stream Manager 2.0
 - Security group for Kafka
+- Security group for RabbitMQ (optional)
 - Security group for Red5 Pro (SM2.0) Autoscaling nodes
 - SSH key pair (use existing or create a new one)
 - Standalone Kafka instance (optional).
+- RabbitMQ in Docker (optional): one instance (`rabbitmq_mode = "single"`) or a 3 node RabbitMQ cluster (`rabbitmq_mode = "cluster"`). AMQP port `5672` is open only for the VNet CIDR, nodes connect to the private IPs.
 - Stream Manager 2.0 instance. Optionally include a Kafka server on the same instance.
 - SSL certificate for Stream Manager 2.0 instance. Options:
   - `none` - Stream Manager 2.0 without HTTPS and SSL certificate. Only HTTP on port `80`
@@ -280,6 +282,20 @@ module "red5pro_cluster" {
   kafka_service_machine_size            = "Standard_F8s_v2"                # Machine size for Kafka service
   kafka_service_machine_storage_type    = "Premium_LRS"                    # Kafka service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
 
+  # RabbitMQ configuration - (Optional)
+  rabbitmq_create               = false                       # true - create RabbitMQ instances, false - do not create RabbitMQ
+  rabbitmq_mode                 = "single"                    # single - one instance, cluster - 3 instances in a RabbitMQ cluster
+  rabbitmq_image                = "rabbitmq:4.3.6-management" # RabbitMQ Docker image
+  rabbitmq_machine_size         = "Standard_F2s_v2"           # Machine size for RabbitMQ instances
+  rabbitmq_machine_storage_type = "Premium_LRS"               # RabbitMQ storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  rabbitmq_volume_size          = 30                          # Volume size in GB for RabbitMQ instances
+  rabbitmq_user                 = "red5pro"                   # RabbitMQ user name
+  rabbitmq_password             = ""                          # RabbitMQ user password, empty value - generate a random password
+
+  # Red5 Pro Stream Proxy configuration - (Optional, cluster only)
+  stream_proxy_enable  = false # true - deploy Red5 Pro Stream Proxy on the Stream Manager 2.0 instance (cluster only)
+  stream_proxy_version = ""    # Red5 Pro Stream Proxy docker image version, required when stream_proxy_enable = true. Example: main.b41
+
   # Red5 Pro general configuration
   red5pro_license_key                   = "1111-2222-3333-4444"            # Red5 Pro license key (https://account.red5pro.com/login)
   red5pro_api_enable                    = true                             # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
@@ -295,6 +311,8 @@ module "red5pro_cluster" {
   stream_manager_proxy_password         = "example_proxy_password"         # Stream Manager 2.0 proxy password
   stream_manager_spatial_user           = "example_spatial_user"           # Stream Manager 2.0 spatial user name
   stream_manager_spatial_password       = "example_spatial_password"       # Stream Manager 2.0 spatial password
+  stream_manager_intent_user            = "intent_admin"                   # Stream Manager 2.0 intent API user name
+  stream_manager_intent_password        = ""                               # Stream Manager 2.0 intent API password (generated when empty)
   stream_manager_version                = "latest"                         # Stream Manager 2.0 docker images version (latest, 14.1.0, 14.1.1, etc.) - https://hub.docker.com/r/red5pro/as-admin/tags
   stream_manager_public_hostname        = "sm.example.com"                 # Required: public FQDN for Traefik, admin UI, and HTTPS URLs (not a wildcard). Point DNS A record at the Stream Manager IP from outputs.
 
@@ -360,7 +378,7 @@ module "red5pro_cluster" {
 }
 
 output "module_output" {
-  value = module.red5pro_cluster
+  value = { for k, v in module.red5pro_cluster : k => v if !contains(["rabbitmq_password", "stream_manager_intent_password"], k) }
 }
 ```
 
@@ -377,9 +395,11 @@ Set **`stream_manager_public_hostname`** to the DNS name clients use (e.g. `sm.e
 - Public subnet
 - Security group for Stream Manager 2.0
 - Security group for Kafka
+- Security group for RabbitMQ (optional)
 - Security group for Red5 Pro (SM2.0) Autoscaling nodes
 - SSH key pair (use existing or create a new one)
 - Standalone Kafka instance
+- RabbitMQ in Docker (optional): one instance (`rabbitmq_mode = "single"`) or a 3 node RabbitMQ cluster (`rabbitmq_mode = "cluster"`). AMQP port `5672` is open only for the VNet CIDR, nodes connect to the private IPs.
 - Stream Manager 2.0 instance image
 - Instance poll for Stream Manager 2.0 instances
 - Autoscaling configuration for Stream Manager 2.0 instances
@@ -450,6 +470,16 @@ module "red5pro_autoscale" {
   kafka_service_machine_size          = "Standard_F8s_v2"                 # Machine size for Kafka service
   kafka_service_machine_storage_type  = "Premium_LRS"                     # Kafka service storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
 
+  # RabbitMQ configuration - (Optional)
+  rabbitmq_create               = false                       # true - create RabbitMQ instances, false - do not create RabbitMQ
+  rabbitmq_mode                 = "single"                    # single - one instance, cluster - 3 instances in a RabbitMQ cluster
+  rabbitmq_image                = "rabbitmq:4.3.6-management" # RabbitMQ Docker image
+  rabbitmq_machine_size         = "Standard_F2s_v2"           # Machine size for RabbitMQ instances
+  rabbitmq_machine_storage_type = "Premium_LRS"               # RabbitMQ storage type. Possible values are Standard_LRS, StandardSSD_LRS, Premium_LRS, StandardSSD_ZRS and Premium_ZRS
+  rabbitmq_volume_size          = 30                          # Volume size in GB for RabbitMQ instances
+  rabbitmq_user                 = "red5pro"                   # RabbitMQ user name
+  rabbitmq_password             = ""                          # RabbitMQ user password, empty value - generate a random password
+
   # Red5 Pro general configuration
   red5pro_license_key                 = "1111-2222-3333-4444"             # Red5 Pro license key (https://account.red5pro.com/login)
   red5pro_api_enable                  = true                              # true - enable Red5 Pro server API, false - disable Red5 Pro server API (https://www.red5pro.com/docs/development/api/overview/)
@@ -466,6 +496,8 @@ module "red5pro_autoscale" {
   stream_manager_proxy_password       = "example_proxy_password"          # Stream Manager 2.0 proxy password
   stream_manager_spatial_user         = "example_spatial_user"            # Stream Manager 2.0 spatial user name
   stream_manager_spatial_password     = "example_spatial_password"        # Stream Manager 2.0 spatial password
+  stream_manager_intent_user          = "intent_admin"                    # Stream Manager 2.0 intent API user name
+  stream_manager_intent_password      = ""                                # Stream Manager 2.0 intent API password (generated when empty)
   stream_manager_version              = "latest"                          # Stream Manager 2.0 docker images version (latest, 14.1.0, 14.1.1, etc.) - https://hub.docker.com/r/red5pro/as-admin/tags
   stream_manager_public_hostname      = "sm.example.com"                  # Required: public FQDN for Traefik, admin UI, and HTTPS URLs (not a wildcard). Point DNS A/alias at the load balancer DNS name from outputs.
 
@@ -527,7 +559,7 @@ module "red5pro_autoscale" {
 }
 
 output "module_output" {
-  value = module.red5pro_autoscale
+  value = { for k, v in module.red5pro_autoscale : k => v if !contains(["rabbitmq_password", "stream_manager_intent_password"], k) }
 }
 ```
 
